@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: calculadora-precificacao
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+app:
+  cors:
+    # Lista separada por vírgulas. Em produção, informe somente os domínios publicados do frontend.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
