@@ -1,6 +1,6 @@
 const { query, withTransaction } = require('../db/pool');
 const { ApiError } = require('../utils/api-error');
-const { normalizeSale } = require('../utils/normalizers');
+const { serializeSale } = require('../utils/normalizers');
 
 function buildWhere(filters) {
   const conditions = [];
@@ -57,7 +57,7 @@ async function list(req, res) {
   );
 
   res.json({
-    items: dataResult.rows.map(normalizeSale),
+    items: dataResult.rows.map(serializeSale),
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
     total,
@@ -101,13 +101,13 @@ async function create(req, res) {
     }
 
     if (!produtoId) {
-      throw new ApiError('Produto não encontrado e dados insuficientes para criar', 400);
+      throw new ApiError(400, 'Produto não encontrado e dados insuficientes para criar');
     }
 
     // 3. Verifica estoque
     const prod = await client.query('SELECT estoque FROM produtos WHERE id = $1', [produtoId]);
     if (prod.rows[0].estoque < data.quantidade) {
-      throw new ApiError('Estoque insuficiente', 400);
+      throw new ApiError(400, 'Estoque insuficiente');
     }
 
     // 4. Registra venda
@@ -128,9 +128,21 @@ async function create(req, res) {
   });
 
   res.status(201).json({
-    ...normalizeSale(result.venda),
+    ...serializeSale(result.venda),
     produto_criado: produtoCriado
   });
 }
 
-module.exports = { list, create };
+async function remove(req, res) {
+  const { id } = req.params;
+
+  const result = await query('DELETE FROM vendas WHERE id = $1 RETURNING id', [id]);
+
+  if (result.rows.length === 0) {
+    throw new ApiError(404, 'Venda não encontrada');
+  }
+
+  res.status(204).send();
+}
+
+module.exports = { list, create, remove };

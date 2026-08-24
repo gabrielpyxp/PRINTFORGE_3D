@@ -32,13 +32,12 @@ const filamentIdField = z.preprocess(
 const createProductSchema = z.preprocess(
   (input) => mapAliases(input, productAliases),
   z.object({
-    sku: skuField.default(null),
     nome: z.string().trim().min(2).max(160),
     categoria: z.string().trim().min(1).max(100).default('Sem categoria'),
     filamentoId: filamentIdField.default(null),
     pesoG: nonNegativeNumber.default(0),
     tempoImpressaoH: nonNegativeNumber.default(0),
-    custoProducao: nonNegativeNumber.default(0),
+    custoProducao: nonNegativeNumber.optional(),
     precoVenda: nonNegativeNumber.default(0),
     estoque: z.coerce.number().int().min(0).default(0),
     imagemUrl: imageField.default(null),
@@ -49,7 +48,6 @@ const createProductSchema = z.preprocess(
 const updateProductSchema = z.preprocess(
   (input) => mapAliases(input, productAliases),
   z.object({
-    sku: skuField.optional(),
     nome: z.string().trim().min(2).max(160).optional(),
     categoria: z.string().trim().min(1).max(100).optional(),
     filamentoId: filamentIdField.optional(),

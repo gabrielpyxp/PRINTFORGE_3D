@@ -43,8 +43,9 @@ services:
       backend-java:
         condition: service_started
     volumes:
-      - ./backend-node:/app
-      - /app/node_modules
+      - ./backend-node/src:/app/src
+      - ./backend-node/package.json:/app/package.json
+      - ./backend-node/.env:/app/.env
 
   backend-java:
     build:

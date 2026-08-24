@@ -1,6 +1,6 @@
 const { query, withTransaction } = require('../db/pool');
 const { ApiError } = require('../utils/api-error');
-const { normalizeProduct } = require('../utils/normalizers');
+const { serializeProduct } = require('../utils/normalizers');
 const { config } = require('../config/env');
 
 function buildWhere(filters) {
@@ -48,7 +48,7 @@ async function list(req, res) {
   );
 
   res.json({
-    items: dataResult.rows.map(normalizeProduct),
+    items: dataResult.rows.map(serializeProduct),
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
     total,
@@ -73,7 +73,7 @@ async function create(req, res) {
     return insert.rows[0];
   });
 
-  res.status(201).json(normalizeProduct(result));
+  res.status(201).json(serializeProduct(result));
 }
 
 async function getById(req, res) {
@@ -81,10 +81,10 @@ async function getById(req, res) {
   const result = await query('SELECT * FROM produtos WHERE id = $1', [id]);
 
   if (result.rows.length === 0) {
-    throw new ApiError('Produto não encontrado', 404);
+    throw new ApiError(404, 'Produto não encontrado');
   }
 
-  res.json(normalizeProduct(result.rows[0]));
+  res.json(serializeProduct(result.rows[0]));
 }
 
 async function update(req, res) {
@@ -112,7 +112,7 @@ async function update(req, res) {
   }
 
   if (sets.length === 0) {
-    throw new ApiError('Nenhum campo para atualizar', 400);
+    throw new ApiError(400, 'Nenhum campo para atualizar');
   }
 
   const result = await query(
@@ -121,10 +121,10 @@ async function update(req, res) {
   );
 
   if (result.rows.length === 0) {
-    throw new ApiError('Produto não encontrado', 404);
+    throw new ApiError(404, 'Produto não encontrado');
   }
 
-  res.json(normalizeProduct(result.rows[0]));
+  res.json(serializeProduct(result.rows[0]));
 }
 
 async function remove(req, res) {
@@ -133,10 +133,32 @@ async function remove(req, res) {
   const result = await query('DELETE FROM produtos WHERE id = $1 RETURNING id', [id]);
 
   if (result.rows.length === 0) {
-    throw new ApiError('Produto não encontrado', 404);
+    throw new ApiError(404, 'Produto não encontrado');
   }
 
   res.status(204).send();
 }
 
-module.exports = { list, create, getById, update, remove };
+async function uploadImage(req, res) {
+  const { id } = req.params;
+  
+  if (!req.file) {
+    throw new ApiError(400, 'Nenhuma imagem enviada');
+  }
+
+  // Convert image to base64 data URL
+  const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+  const result = await query(
+    'UPDATE produtos SET imagem_url = $1 WHERE id = $2 RETURNING *',
+    [base64Image, id]
+  );
+
+  if (result.rows.length === 0) {
+    throw new ApiError(404, 'Produto não encontrado');
+  }
+
+  res.json(serializeProduct(result.rows[0]));
+}
+
+module.exports = { list, create, getById, update, remove, uploadImage };

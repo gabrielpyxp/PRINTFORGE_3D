@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -10,7 +10,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   ClipboardList,
-  Cube,
+  Package,
   Download,
   Edit3,
   Filter,
@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Package,
   Plus,
   Printer,
   RefreshCw,
@@ -29,6 +28,7 @@ import {
   Sparkles,
   TrendingUp,
   Trash2,
+  Upload,
   UserRound,
   X
 } from 'lucide-react';
@@ -168,7 +168,6 @@ const navigation = [
 
 const emptyProduct = {
   nome: '',
-  sku: '',
   categoria: 'Decoração',
   filamento_nome: 'PLA',
   filamento_tipo: 'PLA',
@@ -195,11 +194,19 @@ function dateTime(value) {
 }
 
 function dateValue(value) {
-  return new Date(value).toISOString().slice(0, 10);
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
 }
 
 function productImage(product, index = 0) {
   return product.imagem_url || product.image_url || productImages[index % productImages.length];
+}
+
+function productImageFallback(e) {
+  e.target.src = productImages[e.target.dataset.fallbackIndex || 0];
+  e.target.onerror = null;
 }
 
 function getItems(response) {
@@ -338,9 +345,11 @@ function App() {
     notify('Produto atualizado com sucesso.');
   };
 
+  const isDemoId = (id) => typeof id === 'string' && (id.startsWith('p-') || /^p\d+$/.test(id));
+
   const removeProduct = async (product) => {
     if (!window.confirm('Excluir "' + product.nome + '"? Esta ação não pode ser desfeita.')) return;
-    if (demo) {
+    if (demo || isDemoId(product.id)) {
       setProducts((current) => current.filter((item) => item.id !== product.id));
       notify('Produto removido no modo demonstração.');
       return;
@@ -409,6 +418,26 @@ function App() {
     notify('Configurações atualizadas.');
   };
 
+  const removeSale = async (sale) => {
+    if (!window.confirm('Excluir esta venda? Esta ação não pode ser desfeita e o estoque será restaurado.')) return;
+    if (demo || isDemoId(sale.id)) {
+      setSales((current) => current.filter((item) => item.id !== sale.id));
+      if (sale.produto_id && !isDemoId(sale.produto_id)) {
+        setProducts((current) => current.map((item) =>
+          item.id === sale.produto_id ? { ...item, estoque: Number(item.estoque) + Number(sale.quantidade) } : item
+        ));
+      }
+      notify('Venda removida no modo demonstração.');
+      return;
+    }
+    await api.deleteSale(sale.id, token);
+    setSales((current) => current.filter((item) => item.id !== sale.id));
+    setProducts((current) => current.map((item) =>
+      item.id === sale.produto_id ? { ...item, estoque: Number(item.estoque) + Number(sale.quantidade) } : item
+    ));
+    notify('Venda excluída e estoque restaurado.');
+  };
+
   const saveCalculation = async (payload) => {
     if (demo) {
       notify('Cálculo salvo no modo demonstração.');
@@ -422,7 +451,7 @@ function App() {
     return <LoginScreen onLogin={login} onDemo={enterDemo} />;
   }
 
-  const pageProps = {
+const pageProps = {
     products,
     sales,
     settings,
@@ -432,6 +461,7 @@ function App() {
     onUpdateProduct: updateProduct,
     onDeleteProduct: removeProduct,
     onCreateSale: createSale,
+    onDeleteSale: removeSale,
     onSaveSettings: saveSettings,
     onSaveCalculation: saveCalculation,
     demo,
@@ -613,8 +643,10 @@ function NavItem({ id, label, icon: Icon, active, onNavigate }) {
   );
 }
 
-function Topbar({ active, user, demo, loading, onMenu, onRefresh }) {
+function Topbar({ active, user, demo, loading, onMenu, onRefresh, onLogout }) {
   const page = navigation.find((item) => item.id === active);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   return (
     <header className="topbar">
       <button className="icon-button menu-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={22} /></button>
@@ -626,11 +658,34 @@ function Topbar({ active, user, demo, loading, onMenu, onRefresh }) {
         <button className="icon-button refresh-button" onClick={onRefresh} aria-label="Atualizar dados">
           <RefreshCw size={18} className={loading ? 'spin' : ''} />
         </button>
-        <button className="notification-button" aria-label="Notificações"><Bell size={19} /><i /></button>
-        <div className="user-menu">
-          <div className="avatar">{(user?.nome || 'A').slice(0, 1).toUpperCase()}</div>
-          <div className="user-label"><strong>{user?.nome || 'Administrador'}</strong><small>{demo ? 'Demonstração' : 'Administrador'}</small></div>
-          <ChevronDown size={16} />
+        <div className="dropdown-wrapper">
+          <button className="icon-button notification-button" onClick={() => setNotifOpen(!notifOpen)} aria-label="Notificações" aria-expanded={notifOpen}>
+            <Bell size={19} />
+            <i />
+          </button>
+          {notifOpen && (
+            <div className="dropdown-menu notif-dropdown">
+              <div className="dropdown-header"><strong>Notificações</strong></div>
+              <div className="dropdown-empty">Nenhuma notificação por enquanto</div>
+            </div>
+          )}
+        </div>
+        <div className="dropdown-wrapper">
+          <button className="icon-button user-menu" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Menu do usuário" aria-expanded={userMenuOpen}>
+            <div className="avatar">{(user?.nome || 'A').slice(0, 1).toUpperCase()}</div>
+            <div className="user-label"><strong>{user?.nome || 'Administrador'}</strong><small>{demo ? 'Demonstração' : 'Administrador'}</small></div>
+            <ChevronDown size={16} />
+          </button>
+          {userMenuOpen && (
+            <div className="dropdown-menu user-dropdown">
+              <div className="dropdown-header">
+                <strong>{user?.nome || 'Administrador'}</strong>
+                <small>{user?.email}</small>
+              </div>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item" onClick={onLogout}><LogOut size={16} /> Sair da conta</button>
+            </div>
+          )}
         </div>
       </div>
     </header>
@@ -654,7 +709,36 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
     ...product,
     sold: sales.filter((sale) => sale.produto_id === product.id).reduce((total, sale) => total + Number(sale.quantidade), 0)
   })).sort((left, right) => right.sold - left.sold).slice(0, 4);
+  
+  // Calcular variação mensal real
+  const monthlyRevenue = sales.reduce((acc, sale) => {
+    const month = new Date(sale.data_venda).getMonth();
+    acc[month] = (acc[month] || 0) + Number(sale.preco_unitario) * Number(sale.quantidade);
+    return acc;
+  }, {});
+  const currentMonth = new Date().getMonth();
+  const lastMonth = (currentMonth - 1 + 12) % 12;
+  const currentMonthRevenue = monthlyRevenue[currentMonth] || 0;
+  const lastMonthRevenue = monthlyRevenue[lastMonth] || 0;
+  const revenueChange = lastMonthRevenue > 0 
+    ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
+    : (currentMonthRevenue > 0 ? 100 : 0);
+  
+  const profitLastMonth = sales
+    .filter(s => new Date(s.data_venda).getMonth() === lastMonth)
+    .reduce((sum, s) => {
+      const p = products.find(p => p.id === s.produto_id);
+      return sum + ((Number(s.preco_unitario) - Number(p?.custo_producao || 0)) * Number(s.quantidade));
+    }, 0);
+  const profitChange = profitLastMonth !== 0 
+    ? ((profit - profitLastMonth) / Math.abs(profitLastMonth) * 100).toFixed(1)
+    : (profit > 0 ? 100 : 0);
+  
+  const orderChange = sales.filter(s => new Date(s.data_venda).getMonth() === currentMonth).length > 0 ? 100 : 0;
+
   const monthly = [38, 52, 47, 67, 58, 82, 74, 93, 64, 80, 86, 100];
+  const metaMensal = Number(settings?.meta_mensal ?? 2500);
+  const metaProgress = metaMensal > 0 ? Math.min(100, (revenue / metaMensal) * 100).toFixed(0) : 0;
 
   return (
     <section className="page dashboard-page">
@@ -667,9 +751,9 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
         <button className="button button-primary" onClick={() => onNavigate('sales')}><Plus size={17} /> Registrar venda</button>
       </div>
       <div className="metrics-grid">
-        <MetricCard icon={CircleDollarSign} label="Faturamento no período" value={money(revenue)} change="+12,4%" up />
-        <MetricCard icon={ShoppingBag} label="Peças vendidas" value={number.format(orderCount)} change="+8,2%" up tone="orange" />
-        <MetricCard icon={TrendingUp} label="Lucro estimado" value={money(profit)} change="+17,9%" up tone="pink" />
+        <MetricCard icon={CircleDollarSign} label="Faturamento no período" value={money(revenue)} change={(revenueChange >= 0 ? '+' : '') + revenueChange + '%'} up />
+        <MetricCard icon={ShoppingBag} label="Peças vendidas" value={number.format(orderCount)} change={orderChange > 0 ? '+100%' : '0%'} up tone="orange" />
+        <MetricCard icon={TrendingUp} label="Lucro estimado" value={money(profit)} change={(profitChange >= 0 ? '+' : '') + profitChange + '%'} up tone="pink" />
         <MetricCard icon={Package} label="Estoque baixo" value={number.format(lowStock.length)} change={lowStock.length ? 'Atenção necessária' : 'Tudo em ordem'} tone={lowStock.length ? 'yellow' : 'green'} />
       </div>
       <div className="dashboard-grid">
@@ -684,9 +768,16 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
           </div>
         </article>
         <article className="card goal-card">
-          <div className="card-title-row"><div><h3>Meta do mês</h3><p>Agosto de 2026</p></div><button className="dots">•••</button></div>
-          <div className="goal-ring"><div><strong>78%</strong><small>concluído</small></div></div>
-          <div className="goal-footer"><div><span>Faturado</span><strong>{money(revenue)}</strong></div><div><span>Meta</span><strong>{money(2500)}</strong></div></div>
+          <div className="card-title-row"><div><h3>Meta do mês</h3><p>{new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</p></div><button className="dots">•••</button></div>
+          <div className="goal-ring">
+            <svg viewBox="0 0 120 120">
+              <circle className="bg" cx="60" cy="60" r="54" />
+              <circle className="progress" cx="60" cy="60" r="54" 
+                style={{ strokeDashoffset: 339 - (339 * metaProgress / 100) }} />
+            </svg>
+            <div className="progress-text"><strong>{metaProgress}%</strong><small>concluído</small></div>
+          </div>
+          <div className="goal-footer"><div><span>Faturado</span><strong>{money(revenue)}</strong></div><div><span>Meta</span><strong>{money(metaMensal)}</strong></div></div>
         </article>
         <article className="card sales-card">
           <div className="card-title-row"><div><h3>Vendas recentes</h3><p>Movimentações mais recentes</p></div><button className="text-button" onClick={() => onNavigate('sales')}>Ver todas <ArrowUpRight size={14} /></button></div>
@@ -694,7 +785,7 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
             {sales.slice(0, 5).map((sale, index) => {
               const product = products.find((item) => item.id === sale.produto_id);
               return <div className="sale-row" key={sale.id || index}>
-                <img src={productImage(product || {}, index)} alt="" />
+                <img src={productImage(product || {}, index)} alt="" onError={(e) => productImageFallback(e)} />
                 <div><strong>{sale.produto_nome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(sale.data_venda)} · {sale.quantidade} {Number(sale.quantidade) === 1 ? 'unidade' : 'unidades'}</small></div>
                 <b>{money(Number(sale.preco_unitario) * Number(sale.quantidade))}</b>
               </div>;
@@ -707,7 +798,7 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
           <div className="rank-list">
             {ranked.map((product, index) => <div className="rank-row" key={product.id}>
               <span className="rank-number">0{index + 1}</span>
-              <img src={productImage(product, index)} alt="" />
+              <img src={productImage(product, index)} alt="" onError={(e) => productImageFallback(e)} />
               <div><strong>{product.nome}</strong><small>{product.sold} vendidas</small></div>
               <div className="rank-progress"><i style={{ width: Math.max(8, product.sold / Math.max(1, ranked[0]?.sold) * 100) + '%' }} /></div>
             </div>)}
@@ -717,7 +808,7 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
           <div className="card-title-row"><div><h3>Atenção ao estoque</h3><p>Itens que precisam de produção</p></div><span className="alert-count">{lowStock.length}</span></div>
           <div className="stock-list">
             {lowStock.slice(0, 4).map((product, index) => <div className="stock-row" key={product.id}>
-              <img src={productImage(product, index + 2)} alt="" />
+              <img src={productImage(product, index + 2)} alt="" onError={(e) => productImageFallback(e)} />
               <div><strong>{product.nome}</strong><small>{product.estoque} em estoque</small></div>
               <button className="small-action" onClick={() => onNavigate('products')}>Produzir</button>
             </div>)}
@@ -803,9 +894,47 @@ function StatusPill({ stock, limit }) {
   return <span className="status-pill status-ok"><i />Disponível</span>;
 }
 
-function ProductModal({ product, onClose, onSave, busy }) {
+function ProductModal({ product, onClose, onSave, busy, onUploadImage }) {
   const [form, setForm] = useState({ ...emptyProduct, ...product });
+  const [imagePreview, setImagePreview] = useState(product?.imagem_url || '');
+  const [uploading, setUploading] = useState(false);
+  const imageInputRef = useRef(null);
   const field = (name, value) => setForm((current) => ({ ...current, [name]: value }));
+  
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Apenas imagens são permitidas');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 5MB');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const token = sessionStorage.getItem('printforge-session') 
+        ? JSON.parse(sessionStorage.getItem('printforge-session')).token 
+        : null;
+      const response = await fetch(`/api/produtos/${product.id}/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      if (!response.ok) throw new Error('Erro ao fazer upload da imagem');
+      const result = await response.json();
+      setImagePreview(result.imagem_url);
+      field('imagem_url', result.imagem_url);
+    } catch (error) {
+      alert(error.message || 'Erro ao fazer upload da imagem');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const submit = (event) => {
     event.preventDefault();
     onSave(form);
@@ -815,24 +944,53 @@ function ProductModal({ product, onClose, onSave, busy }) {
       <form className="modal-form" onSubmit={submit}>
         <div className="form-grid">
           <label className="field field-wide"><span>Nome do produto</span><input value={form.nome} onChange={(event) => field('nome', event.target.value)} placeholder="Ex.: Dragão articulado" required /></label>
-          <label className="field"><span>SKU</span><input value={form.sku || ''} onChange={(event) => field('sku', event.target.value)} placeholder="PF-0001" /></label>
           <label className="field"><span>Categoria</span><select value={form.categoria} onChange={(event) => field('categoria', event.target.value)}><option>Decoração</option><option>Organização</option><option>Colecionáveis</option><option>Games</option><option>Utilidades</option><option>Personalizados</option></select></label>
           <label className="field"><span>Filamento</span><input value={form.filamento_nome || ''} onChange={(event) => field('filamento_nome', event.target.value)} placeholder="PLA Silk vermelho" /></label>
           <label className="field"><span>Tipo de filamento</span><select value={form.filamento_tipo || 'PLA'} onChange={(event) => field('filamento_tipo', event.target.value)}><option>PLA</option><option>ABS</option><option>PETG</option><option>TPU</option><option>Resina</option></select></label>
           <label className="field"><span>Peso usado (g)</span><input type="number" min="0" step="0.1" value={form.peso_g} onChange={(event) => field('peso_g', event.target.value)} required /></label>
           <label className="field"><span>Tempo de impressão (h)</span><input type="number" min="0" step="0.1" value={form.tempo_impressao_h} onChange={(event) => field('tempo_impressao_h', event.target.value)} required /></label>
-          <label className="field"><span>Custo de produção</span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} required /></label>
+          <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
           <label className="field"><span>Preço de venda</span><input type="number" min="0" step="0.01" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
           <label className="field"><span>Estoque inicial</span><input type="number" min="0" step="1" value={form.estoque} onChange={(event) => field('estoque', event.target.value)} required /></label>
-          <label className="field field-wide"><span>URL da imagem <em>opcional</em></span><input value={form.imagem_url || ''} onChange={(event) => field('imagem_url', event.target.value)} placeholder="https://…" /></label>
-        </div>
+<div className="field field-wide">
+            <span>Imagem do produto <em>opcional</em></span>
+            <div className="image-upload-wrapper">
+              {imagePreview && (
+                <div className="image-preview">
+                  <img src={imagePreview} alt="Preview" />
+                  <button type="button" className="image-remove" onClick={() => { setImagePreview(''); field('imagem_url', ''); }} title="Remover imagem"><X size={16} /></button>
+                </div>
+              )}
+              <div className="image-upload-label">
+                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} style={{ display: 'none' }} ref={(el) => { imageInputRef.current = el; }} />
+                <span className="image-upload-button">
+                  <Upload size={18} />
+                  <span>{uploading ? 'Enviando...' : imagePreview ? 'Trocar imagem' : 'Carregar imagem'}</span>
+                </span>
+              </div>
+              {imagePreview && <input type="hidden" name="imagem_url" value={imagePreview} />}
+</div>
+            </div>
+          </div>
         <div className="modal-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar produto'} <Check size={16} /></button></div>
       </form>
     </Modal>
   );
 }
 
-function Sales({ products, sales, onCreateSale, notify }) {
+
+
+function getFirstDayOfMonth() {
+  const d = new Date();
+  d.setDate(1);
+  return dateValue(d);
+}
+
+function getToday() {
+  return dateValue(new Date());
+}
+
+function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
   const [form, setForm] = useState({
     produto_id: products[0]?.id || '',
     nome_produto: '',
@@ -842,13 +1000,14 @@ function Sales({ products, sales, onCreateSale, notify }) {
     data_venda: dateValue(new Date())
   });
   const [search, setSearch] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState(getFirstDayOfMonth());
+  const [to, setTo] = useState(getToday());
   const [busy, setBusy] = useState(false);
   const selected = products.find((product) => product.id === form.produto_id);
   const filtered = sales.filter((sale) => {
     const matchesText = (sale.produto_nome || '').toLowerCase().includes(search.toLowerCase());
     const soldAt = dateValue(sale.data_venda);
+    if (!soldAt) return false;
     return matchesText && (!from || soldAt >= from) && (!to || soldAt <= to);
   });
 
@@ -910,9 +1069,10 @@ function Sales({ products, sales, onCreateSale, notify }) {
               const product = products.find((item) => item.id === sale.produto_id);
               const value = Number(sale.preco_unitario) * Number(sale.quantidade);
               return <div className="history-row" key={sale.id || index}>
-                <img src={productImage(product || {}, index)} alt="" />
+                <img src={productImage(product || {}, index)} alt="" onError={(e) => productImageFallback(e)} />
                 <div><strong>{sale.produto_nome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(sale.data_venda)} · {sale.quantidade} un. × {money(sale.preco_unitario)}</small></div>
                 <div><b>{money(value)}</b><span className="status-pill status-ok"><i />Concluída</span></div>
+                <button className="danger" aria-label="Excluir venda" onClick={() => onDeleteSale(sale)}><Trash2 size={16} /></button>
               </div>;
             })}
             {!filtered.length && <EmptyState icon={ClipboardList} title="Sem vendas neste filtro" text="Altere os filtros ou registre uma nova venda." />}
@@ -923,7 +1083,7 @@ function Sales({ products, sales, onCreateSale, notify }) {
   );
 }
 
-function Catalog({ products }) {
+function Catalog({ products, onNavigate, onDeleteProduct, onUpdateProduct }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [material, setMaterial] = useState('');
@@ -950,8 +1110,12 @@ function Catalog({ products }) {
       <div className="catalog-meta"><span>{filtered.length} {filtered.length === 1 ? 'peça encontrada' : 'peças encontradas'}</span><span>Ordenar: <strong>Mais recentes</strong> <ChevronDown size={14} /></span></div>
       <div className="catalog-grid">
         {filtered.map((product, index) => <article className="catalog-card" key={product.id}>
-          <div className="catalog-image"><img src={productImage(product, index)} alt={product.nome} /><span>{product.filamento_tipo || '3D'}</span></div>
+          <div className="catalog-image"><img src={productImage(product, index)} alt={product.nome} onError={(e) => productImageFallback(e)} /><span>{product.filamento_tipo || '3D'}</span></div>
           <div className="catalog-info"><small>{product.categoria || 'Personalizados'}</small><h3>{product.nome}</h3><div><strong>{money(product.preco_venda)}</strong><span>{Number(product.estoque) > 0 ? 'Em estoque' : 'Sob encomenda'}</span></div></div>
+          <div className="catalog-actions">
+            <button className="icon-button" onClick={() => onNavigate('products') && setTimeout(() => onNavigate('products'), 0)} aria-label="Editar produto" title="Editar"><Edit3 size={16} /></button>
+            <button className="icon-button danger" onClick={() => onNavigate('products') && setTimeout(() => onDeleteProduct({id: product.id, nome: product.nome}), 0)} aria-label="Excluir produto" title="Excluir"><Trash2 size={16} /></button>
+          </div>
         </article>)}
       </div>
       {!filtered.length && <EmptyState icon={Search} title="Nenhuma peça encontrada" text="Tente outra busca ou remova um dos filtros." />}
@@ -1006,7 +1170,7 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
   };
   return (
     <section className="page calculator-page">
-      <div className="page-heading"><div><span className="eyebrow">MOTOR DE CUSTOS</span><h1>Precificação inteligente</h1><p>Descubra o preço justo em segundos, sem adivinhações.</p></div><span className="java-badge"><Cube size={14} /> Serviço de cálculo ativo</span></div>
+      <div className="page-heading"><div><span className="eyebrow">MOTOR DE CUSTOS</span><h1>Precificação inteligente</h1><p>Descubra o preço justo em segundos, sem adivinhações.</p></div><span className="java-badge"><Package size={14} /> Serviço de cálculo ativo</span></div>
       <div className="calculator-layout">
         <article className="card calc-input-card">
           <div className="section-heading"><span className="section-icon"><Calculator size={18} /></span><div><h3>Dados da impressão</h3><p>Preencha os insumos para calcular.</p></div></div>

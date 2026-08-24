@@ -9,7 +9,8 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-router.get('/', validate(salesListSchema), asyncHandler(saleController.list));
+router.get('/', validate(salesListSchema, 'query'), asyncHandler(saleController.list));
 router.post('/', validate(createSaleSchema), asyncHandler(saleController.create));
+router.delete('/:id', asyncHandler(saleController.remove));
 
 module.exports = router;

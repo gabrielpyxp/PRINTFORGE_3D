@@ -2,7 +2,8 @@ const { ApiError } = require('../utils/api-error');
 
 function validate(schema, property = 'body') {
   return (req, _res, next) => {
-    const parsed = schema.safeParse(req[property]);
+    const source = req[property];
+    const parsed = schema.safeParse(source);
     if (!parsed.success) {
       return next(new ApiError(422, 'Dados de entrada inválidos.', parsed.error.flatten()));
     }

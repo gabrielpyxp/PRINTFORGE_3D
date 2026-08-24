@@ -36,14 +36,14 @@ async function callCalculatorService(payload) {
   }
 }
 
-function calculateLocally({ pesoFilamentoG, custoFilamentoPorKg, tempoImpressaoH, potenciaImpressoraW, custoKwh, margemLucroPercentual }) {
-  const pesoKg = pesoFilamentoG / 1000;
-  const potenciaKw = potenciaImpressoraW / 1000;
+function calculateLocally({ pesoG, custoFilamentoKg, tempoImpressaoH, potenciaImpressoraW, custoKwh, margemLucro }) {
+  const pesoKg = pesoG / 1000;
+  const potenciaKw = (potenciaImpressoraW || 0) / 1000;
 
-  const custoFilamento = pesoKg * custoFilamentoPorKg;
-  const custoEnergia = tempoImpressaoH * potenciaKw * custoKwh;
+  const custoFilamento = pesoKg * custoFilamentoKg;
+  const custoEnergia = tempoImpressaoH * potenciaKw * (custoKwh || 0);
   const custoTotal = custoFilamento + custoEnergia;
-  const valorLucro = custoTotal * (margemLucroPercentual / 100);
+  const valorLucro = custoTotal * ((margemLucro || 0) / 100);
   const precoFinal = custoTotal + valorLucro;
 
   return {
@@ -66,9 +66,9 @@ async function save(req, res) {
   const result = await callCalculatorService(payload);
 
   const saved = await query(
-    `INSERT INTO calculos (produto_id, custo_filamento, custo_energia, margem_aplicada, preco_final)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [payload.produtoId || null, result.custoFilamento, result.custoEnergia, payload.margemLucroPercentual, result.precoFinalSugerido]
+    `INSERT INTO calculos (produto_id, custo_filamento, custo_energia, custo_total, margem_aplicada, valor_lucro, preco_final)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [payload.produtoId || null, result.custoFilamento, result.custoEnergia, result.custoTotalProducao, payload.margemLucro || 0, result.valorLucro, result.precoFinalSugerido]
   );
 
   res.status(201).json(saved.rows[0]);

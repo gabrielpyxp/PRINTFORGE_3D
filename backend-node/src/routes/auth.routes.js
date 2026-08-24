@@ -20,14 +20,14 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    throw new ApiError('Credenciais inválidas', 401);
+    throw new ApiError(401, 'Credenciais inválidas');
   }
 
   const user = result.rows[0];
   const valid = await bcrypt.compare(senha, user.senha_hash);
 
   if (!valid) {
-    throw new ApiError('Credenciais inválidas', 401);
+    throw new ApiError(401, 'Credenciais inválidas');
   }
 
   const token = jwt.sign(

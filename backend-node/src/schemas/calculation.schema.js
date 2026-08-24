@@ -3,9 +3,9 @@ const { z, uuid, nonNegativeNumber, mapAliases, paginationSchema } = require('./
 const calculationAliases = {
   produtoId: ['produto_id'],
   pesoG: ['peso_g'],
-  custoFilamentoKg: ['custo_filamento_kg', 'custoKg'],
+  custoFilamentoKg: ['custo_filamento_kg', 'custoKg', 'custo_kg'],
   tempoImpressaoH: ['tempo_impressao_h'],
-  potenciaImpressoraW: ['potencia_impressora_w'],
+  potenciaImpressoraW: ['potencia_impressora_w', 'potencia_w'],
   custoKwh: ['custo_kwh'],
   margemLucro: ['margem_lucro', 'margemAplicada'],
   salvar: ['save']

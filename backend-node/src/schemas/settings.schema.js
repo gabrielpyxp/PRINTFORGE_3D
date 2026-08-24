@@ -4,12 +4,14 @@ const settingsSchema = z.preprocess(
   (input) => mapAliases(input, {
     custoKwh: ['custo_kwh'],
     margemLucroPadrao: ['margem_lucro_padrao'],
-    potenciaImpressoraW: ['potencia_impressora_w']
+    potenciaImpressoraW: ['potencia_impressora_w'],
+    estoqueBaixoLimite: ['estoque_baixo_limite']
   }),
   z.object({
     custoKwh: nonNegativeNumber.optional(),
     margemLucroPadrao: nonNegativeNumber.optional(),
-    potenciaImpressoraW: nonNegativeNumber.optional()
+    potenciaImpressoraW: nonNegativeNumber.optional(),
+    estoqueBaixoLimite: nonNegativeNumber.optional()
   }).refine((value) => Object.keys(value).length > 0, {
     message: 'Informe ao menos uma configuração para atualizar.'
   })

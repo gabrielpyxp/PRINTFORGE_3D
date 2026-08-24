@@ -1,0 +1,17 @@
+# Reiniciar todos os serviços
+cd C:\Users\gabri\OneDrive\SITE_IMPRESSÃO_3D
+docker compose restart
+
+# Reiniciar apenas um serviço específico
+docker compose restart frontend
+docker compose restart backend-node
+docker compose restart backend-java
+docker compose restart printforge-db
+
+# Parar tudo
+docker compose down
+
+# Subir tudo (rebuild se mudou código)
+docker compose up -d --build
+
+docker compose logs -f

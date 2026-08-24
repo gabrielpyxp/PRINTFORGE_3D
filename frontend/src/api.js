@@ -39,6 +39,7 @@ export const api = {
     return request('/vendas' + (query.size ? '?' + query.toString() : ''), {}, token);
   },
   createSale: (body, token) => request('/vendas', { method: 'POST', body: JSON.stringify(body) }, token),
+  deleteSale: (id, token) => request('/vendas/' + id, { method: 'DELETE' }, token),
   catalog: (params, token) => {
     const query = new URLSearchParams(Object.entries(params || {}).filter(([, value]) => value !== '' && value !== undefined));
     return request('/catalogo' + (query.size ? '?' + query.toString() : ''), {}, token);
