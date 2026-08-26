@@ -10,7 +10,7 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 COPY src ./src
-COPY entrypoint.sh ./entrypoint.sh
+COPY backend-node/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 EXPOSE 3001
 ENTRYPOINT ["./entrypoint.sh"]
