@@ -1,4 +1,7 @@
 # backend-node/Dockerfile.prod
+# Force cache invalidation - change this when you need to force rebuild
+ARG CACHE_BUST=1
+
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY backend-node/package*.json ./
