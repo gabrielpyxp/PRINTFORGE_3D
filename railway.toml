@@ -1,0 +1,72 @@
+# railway.toml - Configuração de deploy no Railway
+# Coloque na raiz do repositório (C:\Users\gabri\OneDrive\SITE_IMPRESSÃO_3D\railway.toml)
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 10
+
+[services]
+
+# Backend Node.js (API Principal)
+[services.api]
+source = "backend-node"
+dockerfilePath = "backend-node/Dockerfile"
+
+[services.api.variables]
+NODE_ENV = "production"
+PORT = "3001"
+JWT_SECRET = "{{JWT_SECRET}}"
+CORS_ORIGIN = "https://printforge-3d.vercel.app"
+CALCULATOR_SERVICE_URL = "http://localhost:8080"
+CALCULATOR_TIMEOUT_MS = "3000"
+CALCULATOR_STRICT = "false"
+NODE_ENV = "production"
+
+[services.api.healthcheck]
+path = "/health"
+interval = 30
+timeout = 10
+retries = 3
+
+# Backend Java (Calculadora Spring Boot)
+[services.calculator]
+source = "backend-java"
+dockerfilePath = "backend-java/Dockerfile"
+
+[services.calculator.variables]
+SERVER_PORT = "8080"
+CORS_ALLOWED_ORIGINS = "https://printforge-3d.vercel.app,http://localhost:3000"
+SPRING_PROFILES_ACTIVE = "production"
+
+[services.calculator.healthcheck]
+path = "/actuator/health"
+interval = 30
+timeout = 10
+retries = 3
+
+# PostgreSQL (fornecido pelo Railway como add-on)
+# Não precisa definir serviço - o Railway cria automaticamente
+
+# Variáveis de ambiente globais (referenciadas nos serviços)
+[variables]
+NODE_ENV = "production"
+SPRING_PROFILES_ACTIVE = "production"
+SPRING_PROFILES_ACTIVE_CALCULATOR = "production"
+
+# Healthcheck global
+[healthcheck]
+path = "/health"
+interval = 30
+timeout = 10
+retries = 3
+
+# Deploy settings
+[deploy]
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 5
+healthcheckTimeout = 300

@@ -6,8 +6,8 @@ async function start() {
   validateEnvironment();
   await pool.query('SELECT 1');
 
-  const server = app.listen(config.port, () => {
-    console.log(`API disponível em http://localhost:${config.port}`);
+ const server = app.listen(config.port, '0.0.0.0', () => {
+    console.log(`API rodando na porta ${config.port} (liberada para nuvem!)`);
   });
 
   async function shutdown(signal) {

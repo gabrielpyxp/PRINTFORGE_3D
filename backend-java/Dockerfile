@@ -11,7 +11,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 RUN addgroup --system spring && adduser --system --ingroup spring spring
-COPY --from=build /workspace/target/calculadora-precificacao-1.0.0.jar app.jar
+COPY --from=build /workspace/target/*.jar app.jar
 
 USER spring
 EXPOSE 8080

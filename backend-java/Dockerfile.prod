@@ -1,0 +1,42 @@
+# Dockerfile para o serviço de cálculo Spring Boot (produção)
+# Multi-stage build: Maven build -> JRE runtime
+
+# ---------- STAGE 1: Build com Maven ----------
+FROM maven:3.9.11-eclipse-temurin-21 AS build
+WORKDIR /workspace
+
+# Cache de dependências
+COPY pom.xml .
+RUN mvn -B -ntp dependency:go-offline
+
+# Compilar aplicação
+COPY src ./src
+RUN mvn -B -ntp package -DskipTests
+
+# ---------- STAGE 2: Runtime JRE ----------
+FROM eclipse-temurin:21-jre-alpine AS runner
+WORKDIR /app
+
+# Usuário não-root para segurança
+RUN addgroup -g 1001 -S spring && \
+    adduser -S -u 1001 -G spring spring
+
+WORKDIR /app
+
+# Copia JAR da stage de build (usa wildcard para pegar qualquer versão)
+COPY --from=build /workspace/target/*.jar app.jar
+
+# Configurações de usuário não-root
+RUN chown -R spring:spring /app
+USER spring
+
+# Configurações JVM para containers
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication"
+
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
