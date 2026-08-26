@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# If node_modules doesn't exist or is empty, install dependencies
-if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+# Se node_modules não existe ou está vazio, instala
+if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules)" ]; then
   echo "Installing dependencies..."
   npm install
 fi
