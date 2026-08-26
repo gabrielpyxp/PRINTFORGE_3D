@@ -1,15 +1,15 @@
 # backend-node/Dockerfile.prod
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
+COPY backend-node/package*.json ./
 RUN npm ci --only=production
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json ./
-COPY src ./src
+COPY backend-node/package*.json ./
+COPY backend-node/src ./src
 COPY backend-node/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 EXPOSE 3001
