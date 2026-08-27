@@ -179,6 +179,17 @@ const emptyProduct = {
   imagem_url: ''
 };
 
+function parseBRL(value) {
+  if (value === '' || value == null) return 0;
+  // aceita "1.234,56" -> "1234.56" e "12,50" -> "12.50"
+  const s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+  // se tinha ponto como milhar, já removido; mantém só último ponto como decimal
+  const parts = s.split('.');
+  const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : s;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function money(value) {
   return currency.format(Number(value || 0));
 }
@@ -345,39 +356,49 @@ function App() {
   const createProduct = async (form) => {
     const payload = {
       ...form,
-      peso_g: Number(form.peso_g),
-      tempo_impressao_h: Number(form.tempo_impressao_h),
-      custo_producao: Number(form.custo_producao),
-      preco_venda: Number(form.preco_venda),
-      estoque: Number(form.estoque)
+      peso_g: Number(String(form.peso_g).replace(',', '.')) || 0,
+      tempo_impressao_h: Number(String(form.tempo_impressao_h).replace(',', '.')) || 0,
+      custo_producao: parseBRL(form.custo_producao),
+      preco_venda: parseBRL(form.preco_venda),
+      estoque: Number(form.estoque) || 0,
     };
     if (demo) {
       setProducts((current) => [{ ...payload, id: 'p-' + Date.now(), criado_em: new Date().toISOString() }, ...current]);
       notify('Produto cadastrado no modo demonstração.');
       return;
     }
-    const created = await api.createProduct(payload, token);
-    setProducts((current) => [created, ...current]);
-    notify('Produto cadastrado com sucesso.');
+    try {
+      const created = await api.createProduct(payload, token);
+      setProducts((current) => [created, ...current]);
+      notify('Produto cadastrado com sucesso.');
+    } catch (e) {
+      notify(e.message || 'Erro ao criar produto (verifique preço com vírgula).', 'error');
+      throw e;
+    }
   };
 
   const updateProduct = async (id, form) => {
     const payload = {
       ...form,
-      peso_g: Number(form.peso_g),
-      tempo_impressao_h: Number(form.tempo_impressao_h),
-      custo_producao: Number(form.custo_producao),
-      preco_venda: Number(form.preco_venda),
-      estoque: Number(form.estoque)
+      peso_g: Number(String(form.peso_g).replace(',', '.')) || 0,
+      tempo_impressao_h: Number(String(form.tempo_impressao_h).replace(',', '.')) || 0,
+      custo_producao: parseBRL(form.custo_producao),
+      preco_venda: parseBRL(form.preco_venda),
+      estoque: Number(form.estoque) || 0,
     };
     if (demo) {
       setProducts((current) => current.map((item) => item.id === id ? { ...item, ...payload } : item));
       notify('Produto atualizado no modo demonstração.');
       return;
     }
-    const updated = await api.updateProduct(id, payload, token);
-    setProducts((current) => current.map((item) => item.id === id ? updated : item));
-    notify('Produto atualizado com sucesso.');
+    try {
+      const updated = await api.updateProduct(id, payload, token);
+      setProducts((current) => current.map((item) => item.id === id ? updated : item));
+      notify('Produto atualizado com sucesso.');
+    } catch (e) {
+      notify(e.message || 'Erro ao atualizar produto.', 'error');
+      throw e;
+    }
   };
 
   const isDemoId = (id) => typeof id === 'string' && (id.startsWith('p-') || /^p\d+$/.test(id));
@@ -398,9 +419,9 @@ function App() {
     const chosen = products.find((item) => item.id === form.produto_id);
     const payload = {
       ...form,
-      quantidade: Number(form.quantidade),
-      preco_unitario: Number(form.preco_unitario),
-      data_venda: form.data_venda ? new Date(form.data_venda).toISOString() : new Date().toISOString()
+      quantidade: Number(String(form.quantidade).replace(',', '.')) || 0,
+      preco_unitario: parseBRL(form.preco_unitario),
+      data_venda: form.data_venda ? new Date(form.data_venda + 'T12:00:00').toISOString() : new Date().toISOString()
     };
     if (demo) {
       const productName = chosen?.nome || form.nome_produto;
@@ -430,10 +451,15 @@ function App() {
       notify(chosen ? 'Venda registrada e estoque atualizado.' : 'Venda registrada e produto criado automaticamente.');
       return;
     }
-    const created = await api.createSale(payload, token);
-    setSales((current) => [created, ...current]);
-    await loadWorkspace();
-    notify(created.produto_criado ? 'Venda registrada e produto criado automaticamente.' : 'Venda registrada e estoque atualizado.');
+    try {
+      const created = await api.createSale(payload, token);
+      setSales((current) => [created, ...current]);
+      await loadWorkspace();
+      notify(created.produto_criado ? 'Venda registrada e produto criado automaticamente.' : 'Venda registrada e estoque atualizado.');
+    } catch (e) {
+      notify(e.message || 'Falha ao registrar venda (verifique preço e estoque).', 'error');
+      throw e;
+    }
   };
 
   const saveSettings = async (nextSettings) => {
@@ -536,7 +562,7 @@ const pageProps = {
           {active === 'dashboard' && <Dashboard {...pageProps} onNavigate={setActive} />}
           {active === 'products' && <Products {...pageProps} />}
           {active === 'sales' && <Sales {...pageProps} />}
-          {active === 'catalog' && <Catalog {...pageProps} />}
+          {active === 'catalog' && <Catalog {...pageProps} onNavigate={setActive} />}
           {active === 'calculator' && <CalculatorView {...pageProps} />}
           {active === 'settings' && <SettingsView {...pageProps} />}
         </div>
@@ -819,11 +845,15 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
           <div className="card-title-row"><div><h3>Vendas recentes</h3><p>Movimentações mais recentes</p></div><button className="text-button" onClick={() => onNavigate('sales')}>Ver todas <ArrowUpRight size={14} /></button></div>
           <div className="sales-list">
             {sales.slice(0, 5).map((sale, index) => {
-              const product = products.find((item) => item.id === sale.produto_id);
+              const pid = sale.produto_id || sale.produtoId;
+              const preco = sale.preco_unitario ?? sale.precoUnitario ?? 0;
+              const rawDate = sale.data_venda || sale.dataVenda;
+              const pNome = sale.produto_nome || sale.produtoNome;
+              const product = products.find((item) => item.id === pid);
               return <div className="sale-row" key={sale.id || index}>
                 <img src={productImage(product || {}, index)} alt="" onError={(e) => productImageFallback(e)} />
-                <div><strong>{sale.produto_nome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(sale.data_venda)} · {sale.quantidade} {Number(sale.quantidade) === 1 ? 'unidade' : 'unidades'}</small></div>
-                <b>{money(Number(sale.preco_unitario) * Number(sale.quantidade))}</b>
+                <div><strong>{pNome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(rawDate)} · {sale.quantidade} {Number(sale.quantidade) === 1 ? 'unidade' : 'unidades'}</small></div>
+                <b>{money(Number(preco) * Number(sale.quantidade))}</b>
               </div>;
             })}
             {!sales.length && <EmptyState compact icon={ShoppingBag} title="Nenhuma venda ainda" text="Registre sua primeira venda para acompanhar o desempenho." />}
@@ -930,60 +960,12 @@ function StatusPill({ stock, limit }) {
   return <span className="status-pill status-ok"><i />Disponível</span>;
 }
 
-function ProductModal({ product, onClose, onSave, busy, onUploadImage }) {
+function ProductModal({ product, onClose, onSave, busy }) {
   const [form, setForm] = useState({ ...emptyProduct, ...product });
-  const [imagePreview, setImagePreview] = useState(product?.imagem_url || '');
-  const [uploading, setUploading] = useState(false);
-  const imageInputRef = useRef(null);
-  const field = (name, value) => setForm((current) => ({ ...current, [name]: value }));
-  
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Apenas imagens são permitidas');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB');
-      return;
-    }
-    // Produto ainda não salvo (sem id) -> preview local em base64, sem chamar API
-    if (!product?.id) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target.result;
-        setImagePreview(base64);
-        field('imagem_url', base64);
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-    // Produto já existe -> upload para API
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const sess = JSON.parse(sessionStorage.getItem('printforge-session') || 'null');
-      const token = sess?.token || null;
-      const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${base}/produtos/${product.id}/image`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      });
-      if (!response.ok) throw new Error('Erro ao fazer upload da imagem');
-      const result = await response.json();
-      const url = result.imagem_url || result.imagemUrl || result.data?.imagem_url;
-      setImagePreview(url);
-      field('imagem_url', url);
-    } catch (error) {
-      alert(error.message || 'Erro ao fazer upload da imagem');
-    } finally {
-      setUploading(false);
-      // limpa input para permitir re-selecionar mesmo arquivo
-      event.target.value = '';
-    }
+  const [imagePreview, setImagePreview] = useState(product?.imagem_url || product?.image_url || '');
+  const field = (name, value) => {
+    setForm((c) => ({ ...c, [name]: value }));
+    if (name === 'imagem_url') setImagePreview(value);
   };
 
   const submit = (event) => {
@@ -1003,25 +985,16 @@ function ProductModal({ product, onClose, onSave, busy, onUploadImage }) {
           <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
           <label className="field"><span>Preço de venda</span><input type="number" min="0" step="0.01" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
           <label className="field"><span>Estoque inicial</span><input type="number" min="0" step="1" value={form.estoque} onChange={(event) => field('estoque', event.target.value)} required /></label>
-<div className="field field-wide">
-            <span>Imagem do produto <em>opcional</em></span>
-            <div className="image-upload-wrapper">
-              {imagePreview && (
-                <div className="image-preview">
-                  <img src={imagePreview} alt="Preview" />
-                  <button type="button" className="image-remove" onClick={() => { setImagePreview(''); field('imagem_url', ''); }} title="Remover imagem"><X size={16} /></button>
-                </div>
-              )}
-              <div className="image-upload-label">
-                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} style={{ display: 'none' }} ref={(el) => { imageInputRef.current = el; }} />
-                <span className="image-upload-button">
-                  <Upload size={18} />
-                  <span>{uploading ? 'Enviando...' : imagePreview ? 'Trocar imagem' : 'Carregar imagem'}</span>
-                </span>
+<label className="field field-wide"><span>Imagem do produto <em>opcional - Cole o link da imagem</em></span><input type="url" value={form.imagem_url || ''} onChange={(e) => field('imagem_url', e.target.value)} placeholder="Cole o link da imagem (https://...)" /></label>
+          {imagePreview ? (
+            <div className="field field-wide">
+              <div className="image-preview" style={{ display: 'inline-flex', width: '120px', height: '120px' }}>
+                <img src={imagePreview} alt="Preview" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} />
+                <div className="image-fallback" style={{ display:'none', width:'100%', height:'100%', background:'var(--bg-elevated)', border:'1px dashed var(--border)', borderRadius:'var(--radius)', alignItems:'center', justifyContent:'center' }}><Package size={24} color="var(--text-dim)" /></div>
+                <button type="button" className="image-remove" onClick={() => field('imagem_url', '')} title="Remover imagem"><X size={16} /></button>
               </div>
-              {imagePreview && <input type="hidden" name="imagem_url" value={imagePreview} />}
-</div>
             </div>
+          ) : null}
           </div>
         <div className="modal-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar produto'} <Check size={16} /></button></div>
       </form>
@@ -1056,9 +1029,13 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
   const [busy, setBusy] = useState(false);
   const selected = products.find((product) => product.id === form.produto_id);
   const filtered = sales.filter((sale) => {
-    const matchesText = (sale.produto_nome || '').toLowerCase().includes(search.toLowerCase());
-    const soldAt = dateValue(sale.data_venda);
-    if (!soldAt) return false;
+    // compat: backend retorna camelCase (dataVenda, produtoNome) mas demo usa snake_case
+    const nome = sale.produto_nome || sale.produtoNome || '';
+    const matchesText = nome.toLowerCase().includes(search.toLowerCase());
+    const rawDate = sale.data_venda || sale.dataVenda;
+    const soldAt = dateValue(rawDate);
+    // se data inválida, mostra no histórico mas ignora filtro de data
+    if (!soldAt) return matchesText;
     return matchesText && (!from || soldAt >= from) && (!to || soldAt <= to);
   });
 
@@ -1117,11 +1094,16 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
           <div className="history-filters"><label className="search-box"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar produto…" /></label><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="De" /><input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Até" /></div>
           <div className="history-list">
             {filtered.map((sale, index) => {
-              const product = products.find((item) => item.id === sale.produto_id);
-              const value = Number(sale.preco_unitario) * Number(sale.quantidade);
+              const pid = sale.produto_id || sale.produtoId;
+              const pNome = sale.produto_nome || sale.produtoNome;
+              const preco = sale.preco_unitario ?? sale.precoUnitario ?? 0;
+              const qtd = sale.quantidade ?? 0;
+              const rawDate = sale.data_venda || sale.dataVenda;
+              const product = products.find((item) => item.id === pid);
+              const value = Number(preco) * Number(qtd);
               return <div className="history-row" key={sale.id || index}>
                 <img src={productImage(product || {}, index)} alt="" onError={(e) => productImageFallback(e)} />
-                <div><strong>{sale.produto_nome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(sale.data_venda)} · {sale.quantidade} un. × {money(sale.preco_unitario)}</small></div>
+                <div><strong>{pNome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(rawDate)} · {qtd} un. × {money(preco)}</small></div>
                 <div><b>{money(value)}</b><span className="status-pill status-ok"><i />Concluída</span></div>
                 <button className="danger" aria-label="Excluir venda" onClick={() => onDeleteSale(sale)}><Trash2 size={16} /></button>
               </div>;
@@ -1134,7 +1116,7 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
   );
 }
 
-function Catalog({ products, onNavigate, onDeleteProduct, onUpdateProduct }) {
+function Catalog({ products, onNavigate, onDeleteProduct }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [material, setMaterial] = useState('');
@@ -1164,8 +1146,8 @@ function Catalog({ products, onNavigate, onDeleteProduct, onUpdateProduct }) {
           <div className="catalog-image"><img src={productImage(product, index)} alt={product.nome} onError={(e) => productImageFallback(e)} /><span>{product.filamento_tipo || '3D'}</span></div>
           <div className="catalog-info"><small>{product.categoria || 'Personalizados'}</small><h3>{product.nome}</h3><div><strong>{money(product.preco_venda)}</strong><span>{Number(product.estoque) > 0 ? 'Em estoque' : 'Sob encomenda'}</span></div></div>
           <div className="catalog-actions">
-            <button className="icon-button" onClick={() => onNavigate('products') && setTimeout(() => onNavigate('products'), 0)} aria-label="Editar produto" title="Editar"><Edit3 size={16} /></button>
-            <button className="icon-button danger" onClick={() => onNavigate('products') && setTimeout(() => onDeleteProduct({id: product.id, nome: product.nome}), 0)} aria-label="Excluir produto" title="Excluir"><Trash2 size={16} /></button>
+            <button className="icon-button" onClick={() => onNavigate?.('products')} aria-label="Editar produto" title="Editar"><Edit3 size={16} /></button>
+            <button className="icon-button danger" onClick={() => { if (window.confirm(`Excluir "${product.nome}"?`)) onDeleteProduct?.({id: product.id, nome: product.nome}); }} aria-label="Excluir produto" title="Excluir"><Trash2 size={16} /></button>
           </div>
         </article>)}
       </div>
