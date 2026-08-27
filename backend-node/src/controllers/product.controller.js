@@ -95,15 +95,6 @@ async function update(req, res) {
   const params = [id];
   let idx = 2;
 
- async function update(req, res) {
-  const { id } = req.params;
-  const data = req.body;
-
-  const sets = [];
-  const params = [id];
-  let idx = 2;
-
-  // COLE ESTE BLOCO ATUALIZADO AQUI DENTRO:
   const fieldMap = {
     sku: 'sku', 
     nome: 'nome', 
