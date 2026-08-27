@@ -44,7 +44,6 @@ const number = new Intl.NumberFormat('pt-BR');
 function productImage(product, index = 0) {
   return product.imagem_url || product.image_url || '';
 }
-
 const demoProducts = [
   {
     id: 'p1',
