@@ -42,8 +42,6 @@ const currency = new Intl.NumberFormat('pt-BR', {
 const number = new Intl.NumberFormat('pt-BR');
 
 function productImage(product, index = 0) {
-  // Retorna apenas a imagem real salva no banco (Base64 ou URL válida). 
-  // Se não tiver, retorna vazio em vez de inventar uma foto aleatória do Unsplash.
   return product.imagem_url || product.image_url || '';
 }
 
