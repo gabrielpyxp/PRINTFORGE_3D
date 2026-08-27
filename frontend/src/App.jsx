@@ -331,6 +331,11 @@ function App() {
     loadWorkspace();
   }, [token]);
 
+  // Hotfix: Dashboard deve revalidar sempre que ganhar foco (sem precisar F5)
+  useEffect(() => {
+    if (active === 'dashboard' && token) loadWorkspace();
+  }, [active]);
+
   const login = async (credentials) => {
     const result = await api.login(credentials);
     const nextSession = {
@@ -985,8 +990,9 @@ function Products({ products, settings, onCreateProduct, onUpdateProduct, onDele
           <div className="table-row table-head"><span>Produto</span><span>Categoria</span><span>Preço</span><span>Estoque</span><span>Status</span><span /></div>
           {visible.map((product, index) => {
             const stock = Number(product.estoque || 0);
+            const fallbackLetter = (product.nome || 'P').trim().charAt(0).toUpperCase();
             return <div className="table-row" key={product.id}>
-              <div className="product-cell"><img src={productImage(product, index)} alt="" /><div><strong>{product.nome}</strong><small>{product.sku || 'Sem SKU'} · {product.filamento_nome || product.filamento_tipo || 'Filamento'}</small></div></div>
+              <div className="product-cell"><div className="product-thumb"><img src={productImage(product, index)} alt={product.nome} onError={(e)=>{e.target.style.display='none'; const fb=e.target.nextElementSibling; if(fb) fb.style.display='flex';}} /><div className="product-thumb-fallback" style={{display:'none'}}>{fallbackLetter}</div></div><div><strong>{product.nome}</strong><small>{product.sku || 'Sem SKU'} · {product.filamento_nome || product.filamento_tipo || 'Filamento'}</small></div></div>
               <span className="table-muted">{product.categoria || 'Sem categoria'}</span>
               <strong>{money(product.preco_venda)}</strong>
               <span>{stock} un.</span>
