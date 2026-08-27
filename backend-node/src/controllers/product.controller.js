@@ -59,6 +59,9 @@ async function list(req, res) {
 async function create(req, res) {
   const data = req.body;
 
+  // Garante que pega tanto imagem_url quanto imagemUrl
+  const imagemFinal = data.imagem_url || data.imagemUrl || '';
+
   const result = await withTransaction(async (client) => {
     const insert = await client.query(
       `INSERT INTO produtos (sku, nome, categoria, filamento_id, peso_g, tempo_impressao_h, custo_producao, preco_venda, estoque, imagem_url, ativo)
@@ -67,7 +70,7 @@ async function create(req, res) {
       [
         data.sku, data.nome, data.categoria, data.filamentoId,
         data.pesoG, data.tempoImpressaoH, data.custoProducao, data.precoVenda,
-        data.estoque, data.imagemUrl, data.ativo
+        data.estoque, imagemFinal, data.ativo ?? true
       ]
     );
     return insert.rows[0];
