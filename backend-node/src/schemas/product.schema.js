@@ -22,7 +22,8 @@ const skuField = z.preprocess(
 );
 const imageField = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
-  z.string().trim().url('imagemUrl deve ser uma URL válida.').max(2_000).nullable()
+  // Aceita Base64 gigante (data:image/...) - sem .url() nem .max() para não quebrar em 422
+  z.string().trim().nullable()
 );
 const filamentIdField = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),

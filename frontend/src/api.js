@@ -47,5 +47,19 @@ export const api = {
   settings: (token) => request('/configuracoes', {}, token),
   saveSettings: (body, token) => request('/configuracoes', { method: 'PUT', body: JSON.stringify(body) }, token),
   price: (body, token) => request('/calculos/precificacao', { method: 'POST', body: JSON.stringify(body) }, token),
-  saveCalculation: (body, token) => request('/calculos', { method: 'POST', body: JSON.stringify(body) }, token)
+  saveCalculation: (body, token) => request('/calculos', { method: 'POST', body: JSON.stringify(body) }, token),
+  ativos: (params, token) => {
+    const q = new URLSearchParams(Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined));
+    return request('/ativos' + (q.size ? '?' + q.toString() : ''), {}, token);
+  },
+  createAtivo: (body, token) => request('/ativos', { method: 'POST', body: JSON.stringify(body) }, token),
+  updateAtivo: (id, body, token) => request('/ativos/' + id, { method: 'PUT', body: JSON.stringify(body) }, token),
+  deleteAtivo: (id, token) => request('/ativos/' + id, { method: 'DELETE' }, token),
+  suprimentos: (params, token) => {
+    const q = new URLSearchParams(Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined));
+    return request('/suprimentos' + (q.size ? '?' + q.toString() : ''), {}, token);
+  },
+  createSuprimento: (body, token) => request('/suprimentos', { method: 'POST', body: JSON.stringify(body) }, token),
+  updateSuprimento: (id, body, token) => request('/suprimentos/' + id, { method: 'PUT', body: JSON.stringify(body) }, token),
+  deleteSuprimento: (id, token) => request('/suprimentos/' + id, { method: 'DELETE' }, token),
 };

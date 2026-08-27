@@ -105,10 +105,12 @@ async function create(req, res) {
     }
 
     // 3. Verifica estoque
-    const prod = await client.query('SELECT estoque FROM produtos WHERE id = $1', [produtoId]);
+    const prod = await client.query('SELECT estoque, peso_g, filamento_tipo FROM produtos WHERE id = $1', [produtoId]);
+    if (!prod.rows.length) throw new ApiError(404, 'Produto não encontrado');
     if (prod.rows[0].estoque < data.quantidade) {
       throw new ApiError(400, 'Estoque insuficiente');
     }
+    const pesoTotalVenda = Number(prod.rows[0].peso_g || 0) * Number(data.quantidade);
 
     // 4. Registra venda
     const venda = await client.query(
@@ -118,11 +120,22 @@ async function create(req, res) {
       [produtoId, data.quantidade, data.precoUnitario, data.margemLucroAplicada || 0, data.dataVenda || new Date()]
     );
 
-    // 5. Atualiza estoque
+    // 5. Atualiza estoque produto
     await client.query(
       'UPDATE produtos SET estoque = estoque - $1 WHERE id = $2',
       [data.quantidade, produtoId]
     );
+
+    // 6. Abate suprimento (filamento) em gramas
+    if (pesoTotalVenda > 0) {
+      const tipo = prod.rows[0].filamento_tipo || 'PLA';
+      // abate do suprimento mais recente com estoque, do mesmo tipo
+      await client.query(
+        `UPDATE suprimentos SET peso_restante_g = GREATEST(0, peso_restante_g - $1)
+         WHERE id = (SELECT id FROM suprimentos WHERE tipo = $2 AND peso_restante_g > 0 ORDER BY criado_em DESC LIMIT 1)`,
+        [pesoTotalVenda, tipo]
+      );
+    }
 
     return { venda: venda.rows[0], produtoCriado };
   });
@@ -135,13 +148,22 @@ async function create(req, res) {
 
 async function remove(req, res) {
   const { id } = req.params;
-
-  const result = await query('DELETE FROM vendas WHERE id = $1 RETURNING id', [id]);
-
-  if (result.rows.length === 0) {
-    throw new ApiError(404, 'Venda não encontrada');
-  }
-
+  const venda = await query('SELECT produto_id, quantidade FROM vendas WHERE id = $1', [id]);
+  if (!venda.rows.length) throw new ApiError(404, 'Venda não encontrada');
+  const prod = await query('SELECT peso_g, filamento_tipo FROM produtos WHERE id = $1', [venda.rows[0].produto_id]);
+  const peso = Number(prod.rows[0]?.peso_g || 0) * Number(venda.rows[0].quantidade || 0);
+  const tipo = prod.rows[0]?.filamento_tipo || 'PLA';
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM vendas WHERE id = $1', [id]);
+    await client.query('UPDATE produtos SET estoque = estoque + $1 WHERE id = $2', [venda.rows[0].quantidade, venda.rows[0].produto_id]);
+    if (peso > 0) {
+      await client.query(
+        `UPDATE suprimentos SET peso_restante_g = peso_restante_g + $1
+         WHERE id = (SELECT id FROM suprimentos WHERE tipo = $2 ORDER BY criado_em DESC LIMIT 1)`,
+        [peso, tipo]
+      );
+    }
+  });
   res.status(204).send();
 }
 

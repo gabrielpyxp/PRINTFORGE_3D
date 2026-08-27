@@ -163,6 +163,7 @@ const navigation = [
   { id: 'sales', label: 'Vendas', icon: ShoppingBag },
   { id: 'catalog', label: 'Catálogo', icon: Grid2X2 },
   { id: 'calculator', label: 'Precificação', icon: Calculator },
+  { id: 'ativos', label: 'Ativos & Insumos', icon: Boxes },
   { id: 'settings', label: 'Configurações', icon: Settings }
 ];
 
@@ -287,6 +288,8 @@ function App() {
   const [sales, setSales] = useState(demoSales);
   const [settings, setSettings] = useState(demoSettings);
   const [dashboard, setDashboard] = useState(null);
+  const [ativos, setAtivos] = useState([]);
+  const [suprimentos, setSuprimentos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -303,16 +306,20 @@ function App() {
     if (!token) return;
     setLoading(true);
     try {
-      const [dashboardResponse, productsResponse, salesResponse, settingsResponse] = await Promise.all([
+      const [dashboardResponse, productsResponse, salesResponse, settingsResponse, ativosResponse, suprimentosResponse] = await Promise.all([
         api.dashboard(token),
         api.products({}, token),
         api.sales({}, token),
-        api.settings(token)
+        api.settings(token),
+        api.ativos({}, token).catch(() => ({ items: [] })),
+        api.suprimentos({}, token).catch(() => ({ items: [] })),
       ]);
       setDashboard(dashboardResponse);
       setProducts(getItems(productsResponse));
       setSales(getItems(salesResponse));
       setSettings(settingsResponse || demoSettings);
+      setAtivos(getItems(ativosResponse));
+      setSuprimentos(getItems(suprimentosResponse));
     } catch (error) {
       notify('Não foi possível atualizar os dados agora. Exibindo o último estado disponível.', 'warning');
     } finally {
@@ -475,22 +482,24 @@ function App() {
 
   const removeSale = async (sale) => {
     if (!window.confirm('Excluir esta venda? Esta ação não pode ser desfeita e o estoque será restaurado.')) return;
+    const pid = sale.produto_id || sale.produtoId;
+    const qtd = Number(sale.quantidade) || 0;
     if (demo || isDemoId(sale.id)) {
       setSales((current) => current.filter((item) => item.id !== sale.id));
-      if (sale.produto_id && !isDemoId(sale.produto_id)) {
-        setProducts((current) => current.map((item) =>
-          item.id === sale.produto_id ? { ...item, estoque: Number(item.estoque) + Number(sale.quantidade) } : item
-        ));
+      if (pid && !isDemoId(pid)) {
+        setProducts((current) => current.map((item) => item.id === pid ? { ...item, estoque: Number(item.estoque) + qtd } : item));
       }
       notify('Venda removida no modo demonstração.');
       return;
     }
-    await api.deleteSale(sale.id, token);
-    setSales((current) => current.filter((item) => item.id !== sale.id));
-    setProducts((current) => current.map((item) =>
-      item.id === sale.produto_id ? { ...item, estoque: Number(item.estoque) + Number(sale.quantidade) } : item
-    ));
-    notify('Venda excluída e estoque restaurado.');
+    try {
+      await api.deleteSale(sale.id, token);
+      setSales((prev) => prev.filter((v) => v.id !== sale.id));
+      setProducts((current) => current.map((item) => item.id === pid ? { ...item, estoque: Number(item.estoque) + qtd } : item));
+      notify('Venda excluída e estoque restaurado.');
+    } catch (e) {
+      notify(e.message || 'Falha ao excluir venda.', 'error');
+    }
   };
 
   const saveCalculation = async (payload) => {
@@ -502,6 +511,42 @@ function App() {
     notify('Cálculo salvo no histórico.');
   };
 
+  // Ativos & Suprimentos CRUD
+  const createAtivo = async (form) => {
+    const payload = { nome: form.nome, tipo: form.tipo, valorPago: Number(form.valorPago), dataAquisicao: form.dataAquisicao || null };
+    if (demo) { setAtivos((c) => [{ ...payload, id: 'a-' + Date.now(), criadoEm: new Date().toISOString() }, ...c]); notify('Ativo criado (demo).'); return; }
+    const created = await api.createAtivo(payload, token);
+    setAtivos((c) => [created, ...c]); notify('Ativo cadastrado.');
+  };
+  const updateAtivo = async (id, form) => {
+    const payload = { nome: form.nome, tipo: form.tipo, valorPago: form.valorPago !== '' ? Number(form.valorPago) : undefined, dataAquisicao: form.dataAquisicao || null };
+    if (demo) { setAtivos((c) => c.map((a) => a.id === id ? { ...a, ...payload } : a)); notify('Ativo atualizado (demo).'); return; }
+    const updated = await api.updateAtivo(id, payload, token);
+    setAtivos((c) => c.map((a) => a.id === id ? updated : a)); notify('Ativo atualizado.');
+  };
+  const deleteAtivo = async (ativo) => {
+    if (!window.confirm(`Excluir ativo "${ativo.nome}"?`)) return;
+    if (demo || String(ativo.id).startsWith('a-')) { setAtivos((c) => c.filter((a) => a.id !== ativo.id)); notify('Ativo removido (demo).'); return; }
+    await api.deleteAtivo(ativo.id, token); setAtivos((c) => c.filter((a) => a.id !== ativo.id)); notify('Ativo excluído.');
+  };
+  const createSuprimento = async (form) => {
+    const payload = { nome: form.nome, tipo: form.tipo, cor: form.cor, pesoTotalG: Number(form.pesoTotalG), valorPago: Number(form.valorPago) };
+    if (demo) { setSuprimentos((c) => [{ ...payload, id: 's-' + Date.now(), pesoRestanteG: payload.pesoTotalG, criadoEm: new Date().toISOString() }, ...c]); notify('Suprimento criado (demo).'); return; }
+    const created = await api.createSuprimento(payload, token);
+    setSuprimentos((c) => [created, ...c]); notify('Suprimento cadastrado.');
+  };
+  const updateSuprimento = async (id, form) => {
+    const payload = { nome: form.nome, tipo: form.tipo, cor: form.cor, pesoTotalG: form.pesoTotalG !== '' ? Number(form.pesoTotalG) : undefined, pesoRestanteG: form.pesoRestanteG !== '' ? Number(form.pesoRestanteG) : undefined, valorPago: form.valorPago !== '' ? Number(form.valorPago) : undefined };
+    if (demo) { setSuprimentos((c) => c.map((s) => s.id === id ? { ...s, ...payload } : s)); notify('Suprimento atualizado (demo).'); return; }
+    const updated = await api.updateSuprimento(id, payload, token);
+    setSuprimentos((c) => c.map((s) => s.id === id ? updated : s)); notify('Suprimento atualizado.');
+  };
+  const deleteSuprimento = async (sup) => {
+    if (!window.confirm(`Excluir suprimento "${sup.nome}"?`)) return;
+    if (demo || String(sup.id).startsWith('s-')) { setSuprimentos((c) => c.filter((s) => s.id !== sup.id)); notify('Suprimento removido (demo).'); return; }
+    await api.deleteSuprimento(sup.id, token); setSuprimentos((c) => c.filter((s) => s.id !== sup.id)); notify('Suprimento excluído.');
+  };
+
   if (!session) {
     return <LoginScreen onLogin={login} onDemo={enterDemo} />;
   }
@@ -511,6 +556,8 @@ const pageProps = {
     sales,
     settings,
     dashboard,
+    ativos,
+    suprimentos,
     loading,
     onCreateProduct: createProduct,
     onUpdateProduct: updateProduct,
@@ -519,6 +566,12 @@ const pageProps = {
     onDeleteSale: removeSale,
     onSaveSettings: saveSettings,
     onSaveCalculation: saveCalculation,
+    onCreateAtivo: createAtivo,
+    onUpdateAtivo: updateAtivo,
+    onDeleteAtivo: deleteAtivo,
+    onCreateSuprimento: createSuprimento,
+    onUpdateSuprimento: updateSuprimento,
+    onDeleteSuprimento: deleteSuprimento,
     demo,
     notify
   };
@@ -558,6 +611,7 @@ const pageProps = {
           {active === 'sales' && <Sales {...pageProps} />}
           {active === 'catalog' && <Catalog {...pageProps} onNavigate={setActive} />}
           {active === 'calculator' && <CalculatorView {...pageProps} />}
+          {active === 'ativos' && <AtivosView {...pageProps} />}
           {active === 'settings' && <SettingsView {...pageProps} />}
         </div>
       </main>
@@ -964,6 +1018,11 @@ function ProductModal({ product, onClose, onSave, busy }) {
     if (name === 'imagem_url') setImagePreview(value);
   };
 
+  useEffect(() => {
+    setForm({ ...emptyProduct, ...product });
+    setImagePreview(product?.imagem_url || product?.image_url || '');
+  }, [product]);
+
   const handleFile = (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -1166,11 +1225,37 @@ function Catalog({ products, onNavigate, onDeleteProduct }) {
         <h1>Catálogo de peças <span>3D</span></h1>
         <p>Uma seleção de objetos impressos com cuidado, camada por camada.</p>
       </div>
-      <div className="catalog-tools">
-        <label className="catalog-search"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="O que você está procurando?" /></label>
-        <label className="filter-select"><SlidersHorizontal size={16} /><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Categoria</option>{categories.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={15} /></label>
-        <label className="filter-select"><select value={material} onChange={(event) => setMaterial(event.target.value)}><option value="">Material</option>{materials.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={15} /></label>
-        <label className="filter-select"><select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}><option value="">Até qualquer preço</option><option value="30">Até R$ 30</option><option value="60">Até R$ 60</option><option value="100">Até R$ 100</option></select><ChevronDown size={15} /></label>
+      <div className="catalog-toolbar-v2">
+        <div className="search-input-wrapper">
+          <Search size={18} className="search-icon" />
+          <input type="text" placeholder="O que você está procurando?" value={search} onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        <div className="filters-group">
+          <div className="select-wrapper">
+            <SlidersHorizontal size={16} className="select-icon-left" />
+            <select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <option value="">Categoria</option>
+              {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <ChevronDown size={14} className="select-chevron" />
+          </div>
+          <div className="select-wrapper">
+            <select value={material} onChange={(event) => setMaterial(event.target.value)}>
+              <option value="">Material</option>
+              {materials.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <ChevronDown size={14} className="select-chevron" />
+          </div>
+          <div className="select-wrapper">
+            <select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}>
+              <option value="">Até qualquer preço</option>
+              <option value="30">Até R$ 30</option>
+              <option value="60">Até R$ 60</option>
+              <option value="100">Até R$ 100</option>
+            </select>
+            <ChevronDown size={14} className="select-chevron" />
+          </div>
+        </div>
       </div>
       <div className="catalog-meta"><span>{filtered.length} {filtered.length === 1 ? 'peça encontrada' : 'peças encontradas'}</span><span>Ordenar: <strong>Mais recentes</strong> <ChevronDown size={14} /></span></div>
       <div className="catalog-grid">
@@ -1367,6 +1452,102 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
             </div>
           </article>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function AtivosView({ ativos, suprimentos, sales, products, onCreateAtivo, onDeleteAtivo, onCreateSuprimento, onDeleteSuprimento, notify }) {
+  const [ativoForm, setAtivoForm] = useState({ nome: '', tipo: 'Impressora 3D', valorPago: '', dataAquisicao: dateValue(new Date()) });
+  const [supForm, setSupForm] = useState({ nome: '', tipo: 'PLA', cor: '', pesoTotalG: '', valorPago: '' });
+  const [busyA, setBusyA] = useState(false);
+  const [busyS, setBusyS] = useState(false);
+
+  const totalLucro = sales.reduce((sum, s) => {
+    const p = products.find((pr) => pr.id === (s.produto_id || s.produtoId));
+    const custo = Number(p?.custo_producao ?? p?.custoProducao ?? 0);
+    const preco = Number(s.preco_unitario ?? s.precoUnitario ?? 0);
+    return sum + (preco - custo) * Number(s.quantidade || 0);
+  }, 0);
+
+  const submitAtivo = async (e) => {
+    e.preventDefault();
+    if (!ativoForm.nome.trim() || !ativoForm.valorPago) { notify('Informe nome e valor pago do ativo.', 'error'); return; }
+    setBusyA(true);
+    try { await onCreateAtivo(ativoForm); setAtivoForm({ nome: '', tipo: 'Impressora 3D', valorPago: '', dataAquisicao: dateValue(new Date()) }); } catch (err) { notify(err.message, 'error'); } finally { setBusyA(false); }
+  };
+  const submitSup = async (e) => {
+    e.preventDefault();
+    if (!supForm.nome.trim() || !supForm.pesoTotalG || !supForm.valorPago) { notify('Informe nome, peso total e valor pago.', 'error'); return; }
+    setBusyS(true);
+    try { await onCreateSuprimento(supForm); setSupForm({ nome: '', tipo: 'PLA', cor: '', pesoTotalG: '', valorPago: '' }); } catch (err) { notify(err.message, 'error'); } finally { setBusyS(false); }
+  };
+
+  return (
+    <section className="page ativos-page">
+      <div className="page-heading"><div><span className="eyebrow">FINANCEIRO</span><h1>Ativos & Insumos</h1><p>Controle máquinas, filamentos e ROI.</p></div></div>
+
+      <div className="ativos-grid">
+        <article className="card ativos-roi-card">
+          <div className="card-title-row"><div><h3>Retorno sobre máquinas (ROI)</h3><p>Lucro acumulado vs valor investido</p></div><span className="alert-count">{ativos.length}</span></div>
+          <div className="ativos-list">
+            {!ativos.length && <EmptyState compact icon={Boxes} title="Nenhum ativo cadastrado" text="Cadastre sua impressora para acompanhar o payback." />}
+            {ativos.map((ativo) => {
+              const invest = Number(ativo.valorPago || ativo.valor_pago || 0);
+              const recuperado = Math.min(totalLucro, invest);
+              const pct = invest > 0 ? Math.min(100, (totalLucro / invest) * 100) : 0;
+              const falta = Math.max(0, invest - totalLucro);
+              return (
+                <div key={ativo.id} className="ativo-row">
+                  <div className="ativo-head"><strong>{ativo.nome}</strong><small>{ativo.tipo} • {money(invest)}</small></div>
+                  <div className="roi-track"><i style={{ width: `${pct}%` }} /></div>
+                  <div className="roi-legend"><span>{money(recuperado)} de {money(invest)} recuperados</span><strong className={pct >= 100 ? 'roi-done' : ''}>{pct.toFixed(1)}% pago</strong></div>
+                  {pct >= 100 ? <span className="status-pill status-ok"><i />Máquina paga</span> : <small style={{ color: 'var(--text-dim)' }}>Faltam {money(falta)} para payback</small>}
+                  <button className="icon-button danger" onClick={() => onDeleteAtivo(ativo)} style={{ marginLeft: 'auto' }}><Trash2 size={16} /></button>
+                </div>
+              );
+            })}
+          </div>
+          <form className="ativos-form" onSubmit={submitAtivo}>
+            <div className="form-grid">
+              <label className="field"><span>Nome da máquina</span><input value={ativoForm.nome} onChange={(e) => setAtivoForm({ ...ativoForm, nome: e.target.value })} placeholder="Ex: Ender 3 Pro" required /></label>
+              <label className="field"><span>Tipo</span><select value={ativoForm.tipo} onChange={(e) => setAtivoForm({ ...ativoForm, tipo: e.target.value })}><option>Impressora 3D</option><option>Outra</option></select></label>
+              <label className="field"><span>Valor pago</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={ativoForm.valorPago} onChange={(e) => setAtivoForm({ ...ativoForm, valorPago: e.target.value })} required /></div></label>
+              <label className="field"><span>Data aquisição</span><input type="date" value={ativoForm.dataAquisicao} onChange={(e) => setAtivoForm({ ...ativoForm, dataAquisicao: e.target.value })} /></label>
+            </div>
+            <button className="button button-primary" disabled={busyA}>{busyA ? 'Salvando...' : 'Adicionar máquina'} <Plus size={16} /></button>
+          </form>
+        </article>
+
+        <article className="card suprimentos-card">
+          <div className="card-title-row"><div><h3>Suprimentos — filamento em gramas</h3><p>Abate automático a cada venda</p></div><span className="alert-count">{suprimentos.length}</span></div>
+          <div className="suprimentos-list">
+            {!suprimentos.length && <EmptyState compact icon={Package} title="Nenhum suprimento" text="Cadastre o rolo comprado para controlar estoque em gramas." />}
+            {suprimentos.map((s) => {
+              const pct = s.pesoTotalG > 0 ? (s.pesoRestanteG / s.pesoTotalG) * 100 : 0;
+              const alerta = pct < 15 || s.pesoRestanteG < 300;
+              return (
+                <div key={s.id} className={`sup-row ${alerta ? 'sup-alert' : ''}`}>
+                  <div className="sup-head"><strong>{s.nome}</strong><small>{s.tipo} {s.cor ? `• ${s.cor}` : ''} • {s.pesoRestanteG.toFixed(0)}g / {s.pesoTotalG.toFixed(0)}g</small></div>
+                  <div className="sup-track"><i style={{ width: `${pct}%` }} className={alerta ? 'track-alert' : ''} /></div>
+                  <div className="sup-legend"><span>{pct.toFixed(0)}% restante</span>{alerta && <span className="status-pill status-low"><i />Repor</span>}<span>{money(s.valorPago)}</span></div>
+                  <button className="icon-button danger" onClick={() => onDeleteSuprimento(s)}><Trash2 size={16} /></button>
+                </div>
+              );
+            })}
+          </div>
+          <form className="suprimentos-form" onSubmit={submitSup}>
+            <div className="form-grid">
+              <label className="field"><span>Nome do suprimento</span><input value={supForm.nome} onChange={(e) => setSupForm({ ...supForm, nome: e.target.value })} placeholder="Rolo PLA Vermelho 1kg" required /></label>
+              <label className="field"><span>Tipo</span><select value={supForm.tipo} onChange={(e) => setSupForm({ ...supForm, tipo: e.target.value })}><option>PLA</option><option>ABS</option><option>PETG</option><option>TPU</option><option>Resina</option></select></label>
+              <label className="field"><span>Cor</span><input value={supForm.cor} onChange={(e) => setSupForm({ ...supForm, cor: e.target.value })} placeholder="Vermelho" /></label>
+              <label className="field"><span>Peso total (g)</span><input type="number" min="0" value={supForm.pesoTotalG} onChange={(e) => setSupForm({ ...supForm, pesoTotalG: e.target.value })} required /></label>
+              <label className="field"><span>Valor pago</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={supForm.valorPago} onChange={(e) => setSupForm({ ...supForm, valorPago: e.target.value })} required /></div></label>
+            </div>
+            <button className="button button-primary" disabled={busyS}>{busyS ? 'Salvando...' : 'Adicionar suprimento'} <Plus size={16} /></button>
+          </form>
+          <div className="formula-note" style={{ margin: '16px' }}><Boxes size={16} /><span> A cada venda o peso da peça (<strong>peso_g</strong> × quantidade) é abatido automaticamente do suprimento do mesmo tipo.</span></div>
+        </article>
       </div>
     </section>
   );

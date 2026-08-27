@@ -54,7 +54,6 @@ async function update(req, res) {
   }
 
   const row = result.rows[0];
-  console.log('[DEBUG] Settings update result:', row);
   res.json({
     custo_kwh: Number(row.custo_kwh),
     margem_lucro_padrao: Number(row.margem_lucro_padrao),

@@ -6,6 +6,8 @@ const catalogRoutes = require('./catalog.routes');
 const settingsRoutes = require('./settings.routes');
 const calculationRoutes = require('./calculation.routes');
 const dashboardRoutes = require('./dashboard.routes');
+const ativoRoutes = require('./ativo.routes');
+const suprimentoRoutes = require('./suprimento.routes');
 
 const router = express.Router();
 
@@ -21,7 +23,9 @@ router.get('/', (_req, res) => {
       catalogo: '/api/catalogo',
       configuracoes: '/api/configuracoes',
       calculos: '/api/calculos',
-      dashboard: '/api/dashboard'
+      dashboard: '/api/dashboard',
+      ativos: '/api/ativos',
+      suprimentos: '/api/suprimentos'
     }
   });
 });
@@ -37,5 +41,7 @@ router.use('/catalogo', catalogRoutes);
 router.use('/configuracoes', settingsRoutes);
 router.use('/calculos', calculationRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/ativos', ativoRoutes);
+router.use('/suprimentos', suprimentoRoutes);
 
 module.exports = router;
