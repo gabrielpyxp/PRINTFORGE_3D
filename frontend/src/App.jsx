@@ -957,9 +957,30 @@ function StatusPill({ stock, limit }) {
 function ProductModal({ product, onClose, onSave, busy }) {
   const [form, setForm] = useState({ ...emptyProduct, ...product });
   const [imagePreview, setImagePreview] = useState(product?.imagem_url || product?.image_url || '');
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
   const field = (name, value) => {
     setForm((c) => ({ ...c, [name]: value }));
     if (name === 'imagem_url') setImagePreview(value);
+  };
+
+  const handleFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Apenas imagens são permitidas');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Imagem deve ter até 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target.result;
+      setImagePreview(base64);
+      field('imagem_url', base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   const submit = (event) => {
@@ -979,16 +1000,33 @@ function ProductModal({ product, onClose, onSave, busy }) {
           <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
           <label className="field"><span>Preço de venda</span><input type="number" min="0" step="0.01" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
           <label className="field"><span>Estoque inicial</span><input type="number" min="0" step="1" value={form.estoque} onChange={(event) => field('estoque', event.target.value)} required /></label>
-<label className="field field-wide"><span>Imagem do produto <em>opcional - Cole o link da imagem</em></span><input type="url" value={form.imagem_url || ''} onChange={(e) => field('imagem_url', e.target.value)} placeholder="Cole o link da imagem (https://...)" /></label>
-          {imagePreview ? (
-            <div className="field field-wide">
-              <div className="image-preview" style={{ display: 'inline-flex', width: '120px', height: '120px' }}>
-                <img src={imagePreview} alt="Preview" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} />
-                <div className="image-fallback" style={{ display:'none', width:'100%', height:'100%', background:'var(--bg-elevated)', border:'1px dashed var(--border)', borderRadius:'var(--radius)', alignItems:'center', justifyContent:'center' }}><Package size={24} color="var(--text-dim)" /></div>
-                <button type="button" className="image-remove" onClick={() => field('imagem_url', '')} title="Remover imagem"><X size={16} /></button>
-              </div>
+<div className="field field-wide">
+            <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#a1a1aa', display: 'flex', gap: '6px' }}>Imagem do produto <em style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-dim)' }}>opcional</em></span>
+            <div
+              className={'dropzone' + (dragOver ? ' dropzone-over' : '') + (imagePreview ? ' dropzone-has-image' : '')}
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') fileRef.current?.click(); }}
+            >
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="Preview" className="dropzone-thumb" onError={(e) => { e.target.style.display='none'; }} />
+                  <button type="button" className="image-remove" onClick={(e) => { e.stopPropagation(); field('imagem_url', ''); setImagePreview(''); }} title="Remover imagem"><X size={14} /></button>
+                  <span className="dropzone-change">Clique ou arraste para trocar</span>
+                </>
+              ) : (
+                <>
+                  <div className="dropzone-icon"><Package size={28} /></div>
+                  <div className="dropzone-text"><strong>Arraste uma imagem ou clique para selecionar</strong><small>PNG, JPG, WEBP até 5MB — será salva em Base64 no campo imagem_url</small></div>
+                </>
+              )}
             </div>
-          ) : null}
+            <input ref={fileRef} type="file" accept="image/*" onChange={(e) => handleFile(e.target.files[0])} style={{ display: 'none' }} />
+          </div>
           </div>
         <div className="modal-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar produto'} <Check size={16} /></button></div>
       </form>
