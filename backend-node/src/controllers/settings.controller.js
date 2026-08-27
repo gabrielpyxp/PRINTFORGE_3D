@@ -23,7 +23,11 @@ async function get(req, res) {
 }
 
 async function update(req, res) {
-  const { custo_kwh, margem_lucro_padrao, potencia_impressora_w, estoque_baixo_limite } = req.body;
+  // após mapAliases + zod, body vem em camelCase (custoKwh etc) mas também aceitamos snake_case para compat
+  const custo_kwh = req.body.custo_kwh ?? req.body.custoKwh;
+  const margem_lucro_padrao = req.body.margem_lucro_padrao ?? req.body.margemLucroPadrao;
+  const potencia_impressora_w = req.body.potencia_impressora_w ?? req.body.potenciaImpressoraW;
+  const estoque_baixo_limite = req.body.estoque_baixo_limite ?? req.body.estoqueBaixoLimite;
 
   const existing = await query('SELECT * FROM configuracoes LIMIT 1');
 
@@ -32,7 +36,7 @@ async function update(req, res) {
     result = await query(
       `INSERT INTO configuracoes (custo_kwh, margem_lucro_padrao, potencia_impressora_w, estoque_baixo_limite)
        VALUES ($1,$2,$3,$4) RETURNING *`,
-      [custo_kwh || 0.98, margem_lucro_padrao || 180, potencia_impressora_w || 220, estoque_baixo_limite || 5]
+      [custo_kwh ?? 0.98, margem_lucro_padrao ?? 180, potencia_impressora_w ?? 220, estoque_baixo_limite ?? 5]
     );
   } else {
     const current = existing.rows[0];

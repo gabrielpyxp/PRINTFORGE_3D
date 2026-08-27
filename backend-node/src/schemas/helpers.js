@@ -20,8 +20,27 @@ function blankToNull(value) {
 }
 
 const uuid = z.string().uuid('Deve ser um UUID válido.');
-const nonNegativeNumber = z.coerce.number().finite().min(0, 'Não pode ser negativo.');
-const positiveInteger = z.coerce.number().int().min(1, 'Deve ser um inteiro maior que zero.');
+
+// Converte valores financeiros PT-BR (ex: "1.234,56" ou "12,50" ou "R$ 12,50") para número
+function parseBRL(value) {
+  if (value === '' || value == null) return value;
+  if (typeof value === 'number') return value;
+  const s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '');
+  // mantém só dígitos, vírgula, ponto e sinal; troca vírgula decimal por ponto
+  // remove separador de milhar '.' antes de trocar vírgula
+  const withoutThousands = s.replace(/\./g, '').replace(',', '.');
+  const cleaned = withoutThousands.replace(/[^0-9.\-]/g, '');
+  // se múltiplos pontos, mantém só último como decimal
+  const parts = cleaned.split('.');
+  const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : cleaned;
+  const n = Number(normalized);
+  return Number.isNaN(n) ? value : n;
+}
+
+const brlNonNegativeNumber = z.preprocess(parseBRL, z.coerce.number().finite().min(0, 'Não pode ser negativo.'));
+const brlPositiveInteger = z.preprocess(parseBRL, z.coerce.number().int().min(1, 'Deve ser um inteiro maior que zero.'));
+const nonNegativeNumber = brlNonNegativeNumber;
+const positiveInteger = brlPositiveInteger;
 const optionalText = z.preprocess(
   (value) => (value === '' || value === undefined ? undefined : value),
   z.string().trim().min(1).max(160).optional()
@@ -39,9 +58,12 @@ module.exports = {
   z,
   uuid,
   nonNegativeNumber,
+  brlNonNegativeNumber,
+  brlPositiveInteger,
   positiveInteger,
   optionalText,
   blankToNull,
   mapAliases,
-  paginationSchema
+  paginationSchema,
+  parseBRL,
 };

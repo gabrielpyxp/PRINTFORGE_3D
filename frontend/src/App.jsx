@@ -231,8 +231,6 @@ function calculatePrice(input) {
   const tempo_impressao_h = Number(input.tempo_impressao_h) || 0;
   const potencia_w = Number(input.potencia_w) || 0;
   const custo_kwh = Number(input.custo_kwh) || 0;
-  const valor_maquina = Number(input.valor_maquina) || 0;
-  const vida_util_h = Number(input.vida_util_h) || 0;
   const hora_trabalho = Number(input.hora_trabalho) || 0;
   const horas_manuais = Number(input.horas_manuais) || 0;
   const quantidade = Math.max(1, Number(input.quantidade) || 1);
@@ -241,9 +239,8 @@ function calculatePrice(input) {
 
   const custo_filamento = (peso_g / 1000) * custo_kg;
   const custo_energia = tempo_impressao_h * (potencia_w / 1000) * custo_kwh;
-  const custo_maquina = vida_util_h > 0 ? (tempo_impressao_h * valor_maquina) / vida_util_h : 0;
   const custo_trabalho = horas_manuais * hora_trabalho;
-  const subtotal = custo_filamento + custo_energia + custo_maquina + custo_trabalho;
+  const subtotal = custo_filamento + custo_energia + custo_trabalho;
   const custo_falhas = subtotal * (risco_falha / 100);
   const custo_unitario = subtotal + custo_falhas;
   const lucro_unitario = custo_unitario * (margem_lucro / 100);
@@ -255,7 +252,6 @@ function calculatePrice(input) {
   return {
     custo_filamento,
     custo_energia,
-    custo_maquina,
     custo_trabalho,
     subtotal,
     custo_falhas,
@@ -271,10 +267,8 @@ function calculatePrice(input) {
     custo_total: custo_unitario,
     lucro: lucro_unitario,
     preco_final: preco_sugerido_unitario,
-    // anatomia proporcional
     custo_filamento_unit: custo_filamento,
     custo_energia_unit: custo_energia,
-    custo_maquina_unit: custo_maquina,
     custo_trabalho_unit: custo_trabalho,
     custo_falhas_unit: custo_falhas,
   };
@@ -1158,11 +1152,11 @@ function Catalog({ products, onNavigate, onDeleteProduct }) {
 
 function CalculatorView({ products, settings, onSaveCalculation, notify }) {
   const presets = [
-    { id: 'chaveiro', label: 'Chaveiro', icon: '🔑', peso_g: 18, custo_kg: 95, tempo_impressao_h: 1.1, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.15, quantidade: 10, margem_lucro: 140, risco_falha: 4 },
-    { id: 'tecnica', label: 'Peça técnica', icon: '⚙️', peso_g: 85, custo_kg: 125, tempo_impressao_h: 5.2, potencia_w: 280, custo_kwh: 0.98, valor_maquina: 4200, vida_util_h: 5000, hora_trabalho: 35, horas_manuais: 0.6, quantidade: 2, margem_lucro: 90, risco_falha: 8 },
-    { id: 'suporte', label: 'Suporte', icon: '🎧', peso_g: 90, custo_kg: 95, tempo_impressao_h: 4.8, potencia_w: 250, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.25, quantidade: 5, margem_lucro: 110, risco_falha: 5 },
-    { id: 'mini', label: 'Miniatura', icon: '🧙', peso_g: 42, custo_kg: 110, tempo_impressao_h: 3.4, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.4, quantidade: 6, margem_lucro: 160, risco_falha: 10 },
-    { id: 'vaso', label: 'Vaso', icon: '🏺', peso_g: 155, custo_kg: 95, tempo_impressao_h: 8.2, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 15, horas_manuais: 0.2, quantidade: 1, margem_lucro: 130, risco_falha: 6 },
+    { id: 'chaveiro', label: 'Chaveiro', icon: '🔑', peso_g: 18, custo_kg: 95, tempo_impressao_h: 1.1, potencia_w: 220, custo_kwh: 0.98, hora_trabalho: 20, horas_manuais: 0.15, quantidade: 10, margem_lucro: 140, risco_falha: 4 },
+    { id: 'tecnica', label: 'Peça técnica', icon: '⚙️', peso_g: 85, custo_kg: 125, tempo_impressao_h: 5.2, potencia_w: 280, custo_kwh: 0.98, hora_trabalho: 35, horas_manuais: 0.6, quantidade: 2, margem_lucro: 90, risco_falha: 8 },
+    { id: 'suporte', label: 'Suporte', icon: '🎧', peso_g: 90, custo_kg: 95, tempo_impressao_h: 4.8, potencia_w: 250, custo_kwh: 0.98, hora_trabalho: 20, horas_manuais: 0.25, quantidade: 5, margem_lucro: 110, risco_falha: 5 },
+    { id: 'mini', label: 'Miniatura', icon: '🧙', peso_g: 42, custo_kg: 110, tempo_impressao_h: 3.4, potencia_w: 220, custo_kwh: 0.98, hora_trabalho: 20, horas_manuais: 0.4, quantidade: 6, margem_lucro: 160, risco_falha: 10 },
+    { id: 'vaso', label: 'Vaso', icon: '🏺', peso_g: 155, custo_kg: 95, tempo_impressao_h: 8.2, potencia_w: 220, custo_kwh: 0.98, hora_trabalho: 15, horas_manuais: 0.2, quantidade: 1, margem_lucro: 130, risco_falha: 6 },
   ];
 
   const [form, setForm] = useState({
@@ -1172,8 +1166,6 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
     tempo_impressao_h: 6.5,
     potencia_w: settings?.potencia_impressora_w || 220,
     custo_kwh: settings?.custo_kwh || 0.98,
-    valor_maquina: 2800,
-    vida_util_h: 6000,
     hora_trabalho: 20,
     horas_manuais: 0.3,
     quantidade: 1,
@@ -1183,10 +1175,9 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
   const [activePreset, setActivePreset] = useState(null);
   const [saved, setSaved] = useState(false);
   const calculated = useMemo(() => calculatePrice(form), [form]);
-  const maxAnatomy = Math.max(calculated.custo_filamento, calculated.custo_energia, calculated.custo_maquina, calculated.custo_trabalho, calculated.custo_falhas, 0.01);
+  const maxAnatomy = Math.max(calculated.custo_filamento, calculated.custo_energia, calculated.custo_trabalho, calculated.custo_falhas, 0.01);
   const custoPct = (calculated.custo_unitario / (calculated.preco_sugerido_unitario || 1)) * 100;
   const lucroPct = 100 - custoPct;
-  const pecasPagaMaquina = calculated.lucro_unitario > 0 && form.valor_maquina > 0 ? Math.ceil(form.valor_maquina / calculated.lucro_unitario) : 0;
 
   useEffect(() => {
     setForm((c) => ({
@@ -1213,8 +1204,6 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
       tempo_impressao_h: p.tempo_impressao_h,
       potencia_w: p.potencia_w,
       custo_kwh: p.custo_kwh,
-      valor_maquina: p.valor_maquina,
-      vida_util_h: p.vida_util_h,
       hora_trabalho: p.hora_trabalho,
       horas_manuais: p.horas_manuais,
       quantidade: p.quantidade,
@@ -1285,8 +1274,6 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
           <article className="card calc-panel">
             <div className="calc-section-title"><span className="calc-section-icon"><Settings size={16} /></span> OPERAÇÃO E TRABALHO</div>
             <div className="calc-grid-2">
-              <label className="field"><span>Valor da máquina</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="100" value={form.valor_maquina} onChange={(e) => update('valor_maquina', e.target.value)} /></div></label>
-              <label className="field"><span>Vida útil</span><div className="input-unit"><input type="number" min="0" step="100" value={form.vida_util_h} onChange={(e) => update('vida_util_h', e.target.value)} /><b>H</b></div></label>
               <label className="field"><span>Hora de trabalho</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="1" value={form.hora_trabalho} onChange={(e) => update('hora_trabalho', e.target.value)} /><b>/ H</b></div></label>
               <label className="field"><span>Horas manuais</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.horas_manuais} onChange={(e) => update('horas_manuais', e.target.value)} /><b>H</b></div></label>
             </div>
@@ -1325,7 +1312,6 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
               {[
                 { label: 'Filamento', value: calculated.custo_filamento },
                 { label: 'Energia', value: calculated.custo_energia },
-                { label: 'Máquina', value: calculated.custo_maquina },
                 { label: 'Mão de obra', value: calculated.custo_trabalho },
                 { label: 'Falhas', value: calculated.custo_falhas },
               ].map((item) => (
@@ -1336,13 +1322,6 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
               ))}
               <div className="calc-anatomy-row calc-anatomy-total"><div><span>Lucro</span><strong>{money(calculated.lucro_unitario)}</strong></div><div className="calc-anatomy-track"><i className="track-lucro" style={{ width: `${(calculated.lucro_unitario / maxAnatomy) * 100}%` }} /></div></div>
             </div>
-
-            {pecasPagaMaquina > 0 && pecasPagaMaquina < 9999 && (
-              <div className="calc-alert">
-                <Sparkles size={16} />
-                <span>Com esse lucro, cerca de <strong>{pecasPagaMaquina} peças</strong> pagam a máquina ({money(form.valor_maquina)}).</span>
-              </div>
-            )}
 
             <div className="calc-actions">
               <button className={'button button-primary button-full ' + (saved ? 'button-saved' : '')} onClick={save}>{saved ? <><Check size={17} /> Salvo</> : <><Plus size={17} /> Salvar preço no produto</>}</button>
