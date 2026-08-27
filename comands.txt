@@ -1,18 +1,26 @@
 # 1. Entre na pasta do projeto
 cd C:\Users\gabri\OneDrive\SITE_IMPRESSÃO_3D
 
+
+
 # 2. Suba tudo com Docker (recomendado - sobe tudo junto)
 docker compose up -d --build
+
+
 
 # OU se quiser rodar apenas o frontend localmente (sem Docker):
 cd frontend
 npm install
 npm run dev
 
+
+
 # E em outro terminal, o backend:
 cd backend-node
 npm install
 npm run dev
+
+
 
 # E em outro terminal, o Java (opcional - para calculadora):
 cd backend-java
