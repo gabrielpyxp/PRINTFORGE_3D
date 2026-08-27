@@ -41,14 +41,11 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 const number = new Intl.NumberFormat('pt-BR');
 
-const productImages = [
-  'https://images.unsplash.com/photo-1631553124520-3c3f1c0d7f8d?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1592833159155-c62df1b65634?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1612809077245-b9e6e2fc5141?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1623693506262-7b4c7a4d93f1?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=900&q=80'
-];
+function productImage(product, index = 0) {
+  // Retorna apenas a imagem real salva no banco (Base64 ou URL válida). 
+  // Se não tiver, retorna vazio em vez de inventar uma foto aleatória do Unsplash.
+  return product.imagem_url || product.image_url || '';
+}
 
 const demoProducts = [
   {
