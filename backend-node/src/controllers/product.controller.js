@@ -95,14 +95,27 @@ async function update(req, res) {
   const params = [id];
   let idx = 2;
 
+  // Mapeia tanto o formato camelCase quanto o snake_case que o front possa mandar
   const fieldMap = {
-    sku: 'sku', nome: 'nome', categoria: 'categoria',
-    filamentoId: 'filamento_id', pesoG: 'peso_g',
-    tempoImpressaoH: 'tempo_impressao_h', custoProducao: 'custo_producao',
-    precoVenda: 'preco_venda', estoque: 'estoque',
-    imagemUrl: 'imagem_url', ativo: 'ativo'
+    sku: 'sku', 
+    nome: 'nome', 
+    categoria: 'categoria',
+    filamentoId: 'filamento_id', 
+    filamento_id: 'filamento_id',
+    pesoG: 'peso_g', 
+    peso_g: 'peso_g',
+    tempoImpressaoH: 'tempo_impressao_h', 
+    tempo_impressao_h: 'tempo_impressao_h',
+    custoProducao: 'custo_producao', 
+    custo_producao: 'custo_producao',
+    precoVenda: 'preco_venda', 
+    preco_venda: 'preco_venda',
+    estoque: 'estoque',
+    imagemUrl: 'imagem_url', 
+    imagem_url: 'imagem_url', 
+    ativo: 'ativo'
   };
-
+  
   for (const [key, column] of Object.entries(fieldMap)) {
     if (data[key] !== undefined) {
       sets.push(`${column} = $${idx}`);
