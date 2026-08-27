@@ -215,84 +215,57 @@ function getItems(response) {
 }
 
 function calculatePrice(input) {
-  const weight = Number(input.peso_g) || 0;
-  const filament = Number(input.custo_kg) || 0;
-  const time = Number(input.tempo_impressao_h) || 0;
-  const power = Number(input.potencia_w) || 0;
-  const kwh = Number(input.custo_kwh) || 0;
-  const margin = Number(input.margem_lucro) || 0;
-  const machineValue = Number(input.valor_maquina) || 0;
-  const machineLife = Number(input.vida_util_h) || 0;
-  const laborRate = Number(input.hora_trabalho) || 0;
-  const manualHours = Number(input.horas_manuais) || 0;
-  const quantity = Number(input.quantidade) || 1;
-  const failureRate = Number(input.risco_falha) || 0;
+  const peso_g = Number(input.peso_g) || 0;
+  const custo_kg = Number(input.custo_kg) || 0;
+  const tempo_impressao_h = Number(input.tempo_impressao_h) || 0;
+  const potencia_w = Number(input.potencia_w) || 0;
+  const custo_kwh = Number(input.custo_kwh) || 0;
+  const valor_maquina = Number(input.valor_maquina) || 0;
+  const vida_util_h = Number(input.vida_util_h) || 0;
+  const hora_trabalho = Number(input.hora_trabalho) || 0;
+  const horas_manuais = Number(input.horas_manuais) || 0;
+  const quantidade = Math.max(1, Number(input.quantidade) || 1);
+  const margem_lucro = Number(input.margem_lucro) || 0;
+  const risco_falha = Number(input.risco_falha) || 0;
 
-  // Custo do filamento
-  const filamentCost = (weight / 1000) * filament;
-  
-  // Custo de energia
-  const energyCost = time * (power / 1000) * kwh;
-  
-  // Custo da máquina
-  const machineCost = (time * machineValue) / (machineLife || 1);
-  
-  // Custo de mão de obra
-  const laborCost = (time + manualHours) * laborRate;
-  
-  // Subtotal (custos diretos)
-  const subtotal = filamentCost + energyCost + machineCost + laborCost;
-  
-  // Custo de falhas
-  const failureCost = subtotal * (failureRate / 100);
-  
-  // Custo unitário
-  const unitCost = subtotal + failureCost;
-  
-  // Lucro unitário
-  const unitProfit = unitCost * (margin / 100);
-  
-  // Preço sugerido unitário
-  const suggestedPrice = unitCost + (unitCost * (margin / 100));
-  
-  // Preço total
-  const totalPrice = suggestedPrice * quantity;
-  
-  // Lucro total
-  const totalProfit = (unitCost * (margin / 100)) * quantity;
+  const custo_filamento = (peso_g / 1000) * custo_kg;
+  const custo_energia = tempo_impressao_h * (potencia_w / 1000) * custo_kwh;
+  const custo_maquina = vida_util_h > 0 ? (tempo_impressao_h * valor_maquina) / vida_util_h : 0;
+  const custo_trabalho = horas_manuais * hora_trabalho;
+  const subtotal = custo_filamento + custo_energia + custo_maquina + custo_trabalho;
+  const custo_falhas = subtotal * (risco_falha / 100);
+  const custo_unitario = subtotal + custo_falhas;
+  const lucro_unitario = custo_unitario * (margem_lucro / 100);
+  const preco_sugerido_unitario = custo_unitario + lucro_unitario;
+  const preco_total = preco_sugerido_unitario * quantidade;
+  const lucro_total = lucro_unitario * quantidade;
+  const tempo_total = tempo_impressao_h * quantidade;
 
   return {
-    custo_filamento: filamentCost,
-    custo_energia: energyCost,
-    custo_maquina: machineCost,
-    custo_trabalho: laborCost,
-    custo_falhas: failureCost,
-    subtotal: subtotal,
-    custo_unitario: unitCost,
-    lucro_unitario: unitProfit,
-    preco_sugerido: suggestedPrice,
-    preco_total: totalPrice,
-    lucro_total: totalProfit,
-    custo_filamento_unit: (weight / 1000) * filament,
-    custo_energia_unit: time * (power / 1000) * kwh,
-    custo_maquina_unit: machineCost,
-    custo_trabalho_unit: laborCost,
-    custo_falhas_unit: failureCost,
-    lucro_unitario: unitProfit,
-    preco_sugerido_unitario: suggestedPrice,
-    preco_total: totalPrice,
-    lucro_total: totalProfit,
-    custo_filamento: filamentCost,
-    custo_energia: energyCost,
-    custo_maquina: machineCost,
-    custo_trabalho: laborCost,
-    custo_falhas: failureCost,
-    subtotal: subtotal,
-    custo_unitario: unitCost,
-    lucro_unitario: unitProfit,
-    preco_sugerido: suggestedPrice,
-    preco_total: totalPrice,
-    lucro_total: totalProfit,
+    custo_filamento,
+    custo_energia,
+    custo_maquina,
+    custo_trabalho,
+    subtotal,
+    custo_falhas,
+    custo_unitario,
+    lucro_unitario,
+    preco_sugerido_unitario,
+    preco_sugerido: preco_sugerido_unitario,
+    preco_total,
+    lucro_total,
+    tempo_total,
+    quantidade,
+    // aliases compatíveis com código antigo
+    custo_total: custo_unitario,
+    lucro: lucro_unitario,
+    preco_final: preco_sugerido_unitario,
+    // anatomia proporcional
+    custo_filamento_unit: custo_filamento,
+    custo_energia_unit: custo_energia,
+    custo_maquina_unit: custo_maquina,
+    custo_trabalho_unit: custo_trabalho,
+    custo_falhas_unit: custo_falhas,
   };
 }
 
@@ -1202,6 +1175,14 @@ function Catalog({ products, onNavigate, onDeleteProduct, onUpdateProduct }) {
 }
 
 function CalculatorView({ products, settings, onSaveCalculation, notify }) {
+  const presets = [
+    { id: 'chaveiro', label: 'Chaveiro', icon: '🔑', peso_g: 18, custo_kg: 95, tempo_impressao_h: 1.1, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.15, quantidade: 10, margem_lucro: 140, risco_falha: 4 },
+    { id: 'tecnica', label: 'Peça técnica', icon: '⚙️', peso_g: 85, custo_kg: 125, tempo_impressao_h: 5.2, potencia_w: 280, custo_kwh: 0.98, valor_maquina: 4200, vida_util_h: 5000, hora_trabalho: 35, horas_manuais: 0.6, quantidade: 2, margem_lucro: 90, risco_falha: 8 },
+    { id: 'suporte', label: 'Suporte', icon: '🎧', peso_g: 90, custo_kg: 95, tempo_impressao_h: 4.8, potencia_w: 250, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.25, quantidade: 5, margem_lucro: 110, risco_falha: 5 },
+    { id: 'mini', label: 'Miniatura', icon: '🧙', peso_g: 42, custo_kg: 110, tempo_impressao_h: 3.4, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 20, horas_manuais: 0.4, quantidade: 6, margem_lucro: 160, risco_falha: 10 },
+    { id: 'vaso', label: 'Vaso', icon: '🏺', peso_g: 155, custo_kg: 95, tempo_impressao_h: 8.2, potencia_w: 220, custo_kwh: 0.98, valor_maquina: 2800, vida_util_h: 6000, hora_trabalho: 15, horas_manuais: 0.2, quantidade: 1, margem_lucro: 130, risco_falha: 6 },
+  ];
+
   const [form, setForm] = useState({
     produto_id: '',
     peso_g: 140,
@@ -1209,82 +1190,185 @@ function CalculatorView({ products, settings, onSaveCalculation, notify }) {
     tempo_impressao_h: 6.5,
     potencia_w: settings?.potencia_impressora_w || 220,
     custo_kwh: settings?.custo_kwh || 0.98,
-    margem_lucro: settings?.margem_lucro_padrao || 180
+    valor_maquina: 2800,
+    vida_util_h: 6000,
+    hora_trabalho: 20,
+    horas_manuais: 0.3,
+    quantidade: 1,
+    margem_lucro: settings?.margem_lucro_padrao || 120,
+    risco_falha: 5,
   });
+  const [activePreset, setActivePreset] = useState(null);
   const [saved, setSaved] = useState(false);
   const calculated = useMemo(() => calculatePrice(form), [form]);
+  const maxAnatomy = Math.max(calculated.custo_filamento, calculated.custo_energia, calculated.custo_maquina, calculated.custo_trabalho, calculated.custo_falhas, 0.01);
+  const custoPct = (calculated.custo_unitario / (calculated.preco_sugerido_unitario || 1)) * 100;
+  const lucroPct = 100 - custoPct;
+  const pecasPagaMaquina = calculated.lucro_unitario > 0 && form.valor_maquina > 0 ? Math.ceil(form.valor_maquina / calculated.lucro_unitario) : 0;
 
   useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      potencia_w: current.potencia_w || settings?.potencia_impressora_w || 220,
-      custo_kwh: current.custo_kwh || settings?.custo_kwh || 0.98
+    setForm((c) => ({
+      ...c,
+      potencia_w: c.potencia_w || settings?.potencia_impressora_w || 220,
+      custo_kwh: c.custo_kwh || settings?.custo_kwh || 0.98,
+      margem_lucro: c.margem_lucro || settings?.margem_lucro_padrao || 120,
     }));
   }, [settings]);
 
   const update = (key, value) => {
     setSaved(false);
-    setForm((current) => ({ ...current, [key]: value }));
+    setActivePreset(null);
+    setForm((c) => ({ ...c, [key]: value }));
   };
-  const selectProduct = (id) => {
-    const product = products.find((item) => item.id === id);
-    setForm((current) => ({
-      ...current,
-      produto_id: id,
-      peso_g: product?.peso_g || current.peso_g,
-      tempo_impressao_h: product?.tempo_impressao_h || current.tempo_impressao_h,
-      margem_lucro: product?.custo_producao && product?.preco_venda
-        ? Math.max(0, ((product.preco_venda - product.custo_producao) / product.custo_producao) * 100).toFixed(1)
-        : current.margem_lucro
+
+  const applyPreset = (p) => {
+    setActivePreset(p.id);
+    setSaved(false);
+    setForm((c) => ({
+      ...c,
+      peso_g: p.peso_g,
+      custo_kg: p.custo_kg,
+      tempo_impressao_h: p.tempo_impressao_h,
+      potencia_w: p.potencia_w,
+      custo_kwh: p.custo_kwh,
+      valor_maquina: p.valor_maquina,
+      vida_util_h: p.vida_util_h,
+      hora_trabalho: p.hora_trabalho,
+      horas_manuais: p.horas_manuais,
+      quantidade: p.quantidade,
+      margem_lucro: p.margem_lucro,
+      risco_falha: p.risco_falha,
     }));
   };
+
+  const selectProduct = (id) => {
+    const product = products.find((item) => item.id === id);
+    setForm((c) => ({
+      ...c,
+      produto_id: id,
+      peso_g: product?.peso_g || c.peso_g,
+      tempo_impressao_h: product?.tempo_impressao_h || c.tempo_impressao_h,
+      margem_lucro: product?.custo_producao && product?.preco_venda
+        ? Math.max(0, ((product.preco_venda - product.custo_producao) / product.custo_producao) * 100).toFixed(1)
+        : c.margem_lucro,
+    }));
+  };
+
   const save = async () => {
     try {
-      await onSaveCalculation({ ...form, ...calculated });
+      await onSaveCalculation({ ...form, ...calculated, custo_producao: calculated.custo_unitario, preco_venda: calculated.preco_sugerido_unitario });
       setSaved(true);
     } catch (error) {
       notify(error.message || 'Não foi possível salvar o cálculo.', 'error');
     }
   };
+
   return (
-    <section className="page calculator-page">
-      <div className="page-heading"><div><span className="eyebrow">MOTOR DE CUSTOS</span><h1>Precificação inteligente</h1><p>Descubra o preço justo em segundos, sem adivinhações.</p></div><span className="java-badge"><Package size={14} /> Serviço de cálculo ativo</span></div>
-      <div className="calculator-layout">
-        <article className="card calc-input-card">
-          <div className="section-heading"><span className="section-icon"><Calculator size={18} /></span><div><h3>Dados da impressão</h3><p>Preencha os insumos para calcular.</p></div></div>
-          <div className="calc-form">
-            <label className="field"><span>Vincular a um produto <em>opcional</em></span><select value={form.produto_id} onChange={(event) => selectProduct(event.target.value)}><option value="">Cálculo avulso</option>{products.map((product) => <option value={product.id} key={product.id}>{product.nome}</option>)}</select></label>
-            <div className="input-section-label">MATERIAL</div>
-            <div className="form-grid">
-              <label className="field"><span>Peso utilizado</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.peso_g} onChange={(event) => update('peso_g', event.target.value)} /><b>g</b></div></label>
-              <label className="field"><span>Filamento por kg</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={form.custo_kg} onChange={(event) => update('custo_kg', event.target.value)} /></div></label>
-            </div>
-            <div className="input-section-label">ENERGIA</div>
-            <div className="form-grid">
-              <label className="field"><span>Tempo de impressão</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.tempo_impressao_h} onChange={(event) => update('tempo_impressao_h', event.target.value)} /><b>h</b></div></label>
-              <label className="field"><span>Potência da impressora</span><div className="input-unit"><input type="number" min="0" step="1" value={form.potencia_w} onChange={(event) => update('potencia_w', event.target.value)} /><b>W</b></div></label>
-              <label className="field field-wide"><span>Tarifa de energia</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={form.custo_kwh} onChange={(event) => update('custo_kwh', event.target.value)} /><b>/ kWh</b></div></label>
-            </div>
-          </div>
-        </article>
-        <article className="card calc-result-card">
-          <div className="result-top"><div><span className="eyebrow">RESULTADO AO VIVO</span><h3>Preço sugerido</h3></div><span className="live-dot"><i />Atualizando</span></div>
-          <div className="price-display"><small>Valor para venda</small><strong>{money(calculated.preco_final)}</strong><span>por unidade</span></div>
-          <div className="margin-control">
-            <div><span>Margem de lucro</span><strong>{Number(form.margem_lucro || 0).toLocaleString('pt-BR')}%</strong></div>
-            <input type="range" min="0" max="500" step="5" value={form.margem_lucro} onChange={(event) => update('margem_lucro', event.target.value)} />
-            <div className="range-labels"><span>0%</span><span>250%</span><span>500%</span></div>
-          </div>
-          <div className="cost-breakdown">
-            <div><span>Filamento <small>{Number(form.peso_g || 0)}g × {money(form.custo_kg)}/kg</small></span><strong>{money(calculated.custo_filamento)}</strong></div>
-            <div><span>Energia elétrica <small>{Number(form.tempo_impressao_h || 0)}h de impressão</small></span><strong>{money(calculated.custo_energia)}</strong></div>
-            <div><span>Custo de produção</span><strong>{money(calculated.custo_total)}</strong></div>
-            <div className="profit-row"><span>Seu lucro</span><strong>+ {money(calculated.lucro)}</strong></div>
-          </div>
-          <button className={'button button-primary button-full ' + (saved ? 'button-saved' : '')} onClick={save}>{saved ? <><Check size={17} /> Cálculo salvo</> : <><Plus size={17} /> Salvar no histórico</>}</button>
-        </article>
+    <section className="page calculator-page-v2">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">MOTOR DE CUSTOS</span>
+          <h1>Precificação inteligente</h1>
+          <p>Simule cenários, ajuste margem e risco para achar o preço justo.</p>
+        </div>
+        <span className="java-badge"><Package size={14} /> Serviço de cálculo ativo</span>
       </div>
-      <div className="formula-note"><Sparkles size={16} /><span>O cálculo considera <strong>filamento + consumo de energia + margem desejada</strong>. Ajuste a margem livremente e veja o resultado na hora.</span></div>
+
+      <div className="calc-presets">
+        <span className="calc-presets-label">Cenários</span>
+        <div className="calc-presets-list">
+          {presets.map((p) => (
+            <button key={p.id} className={'calc-preset ' + (activePreset === p.id ? 'calc-preset-active' : '')} onClick={() => applyPreset(p)}>
+              <span>{p.icon}</span> {p.label}
+            </button>
+          ))}
+        </div>
+        <label className="field calc-preset-select"><select value={form.produto_id} onChange={(e) => selectProduct(e.target.value)}><option value="">Vincular produto...</option>{products.map((pr) => <option key={pr.id} value={pr.id}>{pr.nome}</option>)}</select></label>
+      </div>
+
+      <div className="calculator-layout-v2">
+        <div className="calc-left">
+          <article className="card calc-panel">
+            <div className="calc-section-title"><span className="calc-section-icon"><Package size={16} /></span> MATERIAL E TEMPO</div>
+            <div className="calc-grid-2">
+              <label className="field"><span>Peso utilizado</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.peso_g} onChange={(e) => update('peso_g', e.target.value)} /><b>g</b></div></label>
+              <label className="field"><span>Preço do filamento</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={form.custo_kg} onChange={(e) => update('custo_kg', e.target.value)} /><b>/ KG</b></div></label>
+              <label className="field"><span>Tempo de impressão</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.tempo_impressao_h} onChange={(e) => update('tempo_impressao_h', e.target.value)} /><b>H</b></div></label>
+              <label className="field"><span>Potência da impressora</span><div className="input-unit"><input type="number" min="0" step="1" value={form.potencia_w} onChange={(e) => update('potencia_w', e.target.value)} /><b>W</b></div></label>
+              <label className="field"><span>Tarifa de energia</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="0.01" value={form.custo_kwh} onChange={(e) => update('custo_kwh', e.target.value)} /><b>/ kWh</b></div></label>
+              <label className="field"><span>Quantidade</span><div className="input-unit"><input type="number" min="1" step="1" value={form.quantidade} onChange={(e) => update('quantidade', e.target.value)} /><b>un</b></div></label>
+            </div>
+          </article>
+
+          <article className="card calc-panel">
+            <div className="calc-section-title"><span className="calc-section-icon"><Settings size={16} /></span> OPERAÇÃO E TRABALHO</div>
+            <div className="calc-grid-2">
+              <label className="field"><span>Valor da máquina</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="100" value={form.valor_maquina} onChange={(e) => update('valor_maquina', e.target.value)} /></div></label>
+              <label className="field"><span>Vida útil</span><div className="input-unit"><input type="number" min="0" step="100" value={form.vida_util_h} onChange={(e) => update('vida_util_h', e.target.value)} /><b>H</b></div></label>
+              <label className="field"><span>Hora de trabalho</span><div className="input-unit money-unit"><b>R$</b><input type="number" min="0" step="1" value={form.hora_trabalho} onChange={(e) => update('hora_trabalho', e.target.value)} /><b>/ H</b></div></label>
+              <label className="field"><span>Horas manuais</span><div className="input-unit"><input type="number" min="0" step="0.1" value={form.horas_manuais} onChange={(e) => update('horas_manuais', e.target.value)} /><b>H</b></div></label>
+            </div>
+          </article>
+
+          <article className="card calc-margin-card">
+            <div className="calc-margin-head">
+              <div><span className="calc-margin-label">Margem de lucro</span><strong className="calc-margin-value">{Number(form.margem_lucro || 0).toLocaleString('pt-BR')}%</strong></div>
+              <span className="calc-margin-hint">arraste para ajustar</span>
+            </div>
+            <input type="range" min="0" max="500" step="5" value={form.margem_lucro} onChange={(e) => update('margem_lucro', e.target.value)} className="calc-range" />
+            <div className="range-labels"><span>0%</span><span>250%</span><span>500%</span></div>
+            <label className="field" style={{marginTop:'14px'}}><span>Risco de falha <em>buffer para retrabalho</em></span><div className="input-unit"><input type="number" min="0" max="100" step="1" value={form.risco_falha} onChange={(e) => update('risco_falha', e.target.value)} /><b>%</b></div></label>
+          </article>
+        </div>
+
+        <div className="calc-right">
+          <article className="card calc-result-dark">
+            <div className="calc-right-head"><span className="eyebrow">PREÇO SUGERIDO</span><span className="live-dot"><i />ao vivo</span></div>
+            <div className="calc-price-hero"><strong>{money(calculated.preco_sugerido_unitario)}</strong><span>por unidade • total {money(calculated.preco_total)} ({form.quantidade} un)</span></div>
+
+            <div className="calc-cost-lucro-bar">
+              <div className="calc-bar-track"><i className="calc-bar-cost" style={{ width: `${custoPct}%` }} /><i className="calc-bar-lucro" style={{ width: `${lucroPct}%` }} /></div>
+              <div className="calc-bar-legend"><span><i className="dot-cost" /> Custo {money(calculated.custo_unitario)}</span><span><i className="dot-lucro" /> Lucro {money(calculated.lucro_unitario)}</span></div>
+            </div>
+
+            <div className="calc-mini-grid">
+              <div className="calc-mini"><small>Custo unitário</small><strong>{money(calculated.custo_unitario)}</strong></div>
+              <div className="calc-mini"><small>Lucro unitário</small><strong className="accent">{money(calculated.lucro_unitario)}</strong></div>
+              <div className="calc-mini"><small>Tempo total</small><strong>{(calculated.tempo_total || 0).toFixed(1)} h</strong></div>
+              <div className="calc-mini"><small>Só filamento</small><strong>{money(calculated.custo_filamento)}</strong></div>
+            </div>
+
+            <div className="calc-anatomy">
+              <span className="calc-anatomy-title">ANATOMIA DO CUSTO</span>
+              {[
+                { label: 'Filamento', value: calculated.custo_filamento },
+                { label: 'Energia', value: calculated.custo_energia },
+                { label: 'Máquina', value: calculated.custo_maquina },
+                { label: 'Mão de obra', value: calculated.custo_trabalho },
+                { label: 'Falhas', value: calculated.custo_falhas },
+              ].map((item) => (
+                <div key={item.label} className="calc-anatomy-row">
+                  <div><span>{item.label}</span><strong>{money(item.value)}</strong></div>
+                  <div className="calc-anatomy-track"><i style={{ width: `${(item.value / maxAnatomy) * 100}%` }} /></div>
+                </div>
+              ))}
+              <div className="calc-anatomy-row calc-anatomy-total"><div><span>Lucro</span><strong>{money(calculated.lucro_unitario)}</strong></div><div className="calc-anatomy-track"><i className="track-lucro" style={{ width: `${(calculated.lucro_unitario / maxAnatomy) * 100}%` }} /></div></div>
+            </div>
+
+            {pecasPagaMaquina > 0 && pecasPagaMaquina < 9999 && (
+              <div className="calc-alert">
+                <Sparkles size={16} />
+                <span>Com esse lucro, cerca de <strong>{pecasPagaMaquina} peças</strong> pagam a máquina ({money(form.valor_maquina)}).</span>
+              </div>
+            )}
+
+            <div className="calc-actions">
+              <button className={'button button-primary button-full ' + (saved ? 'button-saved' : '')} onClick={save}>{saved ? <><Check size={17} /> Salvo</> : <><Plus size={17} /> Salvar preço no produto</>}</button>
+              <button className="button button-ghost button-full" onClick={() => setForm((c)=> ({...c, quantidade: Math.max(1, c.quantidade)}))}>Duplicar quantidade</button>
+            </div>
+          </article>
+        </div>
+      </div>
     </section>
   );
 }
