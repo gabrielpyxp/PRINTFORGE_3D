@@ -221,16 +221,78 @@ function calculatePrice(input) {
   const power = Number(input.potencia_w) || 0;
   const kwh = Number(input.custo_kwh) || 0;
   const margin = Number(input.margem_lucro) || 0;
+  const machineValue = Number(input.valor_maquina) || 0;
+  const machineLife = Number(input.vida_util_h) || 0;
+  const laborRate = Number(input.hora_trabalho) || 0;
+  const manualHours = Number(input.horas_manuais) || 0;
+  const quantity = Number(input.quantidade) || 1;
+  const failureRate = Number(input.risco_falha) || 0;
+
+  // Custo do filamento
   const filamentCost = (weight / 1000) * filament;
+  
+  // Custo de energia
   const energyCost = time * (power / 1000) * kwh;
-  const total = filamentCost + energyCost;
-  const profit = total * (margin / 100);
+  
+  // Custo da máquina
+  const machineCost = (time * machineValue) / (machineLife || 1);
+  
+  // Custo de mão de obra
+  const laborCost = (time + manualHours) * laborRate;
+  
+  // Subtotal (custos diretos)
+  const subtotal = filamentCost + energyCost + machineCost + laborCost;
+  
+  // Custo de falhas
+  const failureCost = subtotal * (failureRate / 100);
+  
+  // Custo unitário
+  const unitCost = subtotal + failureCost;
+  
+  // Lucro unitário
+  const unitProfit = unitCost * (margin / 100);
+  
+  // Preço sugerido unitário
+  const suggestedPrice = unitCost + (unitCost * (margin / 100));
+  
+  // Preço total
+  const totalPrice = suggestedPrice * quantity;
+  
+  // Lucro total
+  const totalProfit = (unitCost * (margin / 100)) * quantity;
+
   return {
     custo_filamento: filamentCost,
     custo_energia: energyCost,
-    custo_total: total,
-    lucro: profit,
-    preco_final: total + profit
+    custo_maquina: machineCost,
+    custo_trabalho: laborCost,
+    custo_falhas: failureCost,
+    subtotal: subtotal,
+    custo_unitario: unitCost,
+    lucro_unitario: unitProfit,
+    preco_sugerido: suggestedPrice,
+    preco_total: totalPrice,
+    lucro_total: totalProfit,
+    custo_filamento_unit: (weight / 1000) * filament,
+    custo_energia_unit: time * (power / 1000) * kwh,
+    custo_maquina_unit: machineCost,
+    custo_trabalho_unit: laborCost,
+    custo_falhas_unit: failureCost,
+    lucro_unitario: unitProfit,
+    preco_sugerido_unitario: suggestedPrice,
+    preco_total: totalPrice,
+    lucro_total: totalProfit,
+    custo_filamento: filamentCost,
+    custo_energia: energyCost,
+    custo_maquina: machineCost,
+    custo_trabalho: laborCost,
+    custo_falhas: failureCost,
+    subtotal: subtotal,
+    custo_unitario: unitCost,
+    lucro_unitario: unitProfit,
+    preco_sugerido: suggestedPrice,
+    preco_total: totalPrice,
+    lucro_total: totalProfit,
   };
 }
 
@@ -489,6 +551,7 @@ const pageProps = {
           loading={loading}
           onMenu={() => setMobileOpen(true)}
           onRefresh={loadWorkspace}
+          onLogout={logout}
         />
         <div className="page-content">
           {demo && (
@@ -912,26 +975,41 @@ function ProductModal({ product, onClose, onSave, busy, onUploadImage }) {
       alert('A imagem deve ter no máximo 5MB');
       return;
     }
+    // Produto ainda não salvo (sem id) -> preview local em base64, sem chamar API
+    if (!product?.id) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target.result;
+        setImagePreview(base64);
+        field('imagem_url', base64);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+    // Produto já existe -> upload para API
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const token = sessionStorage.getItem('printforge-session') 
-        ? JSON.parse(sessionStorage.getItem('printforge-session')).token 
-        : null;
-      const response = await fetch(`/api/produtos/${product.id}/image`, {
+      const sess = JSON.parse(sessionStorage.getItem('printforge-session') || 'null');
+      const token = sess?.token || null;
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${base}/produtos/${product.id}/image`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       if (!response.ok) throw new Error('Erro ao fazer upload da imagem');
       const result = await response.json();
-      setImagePreview(result.imagem_url);
-      field('imagem_url', result.imagem_url);
+      const url = result.imagem_url || result.imagemUrl || result.data?.imagem_url;
+      setImagePreview(url);
+      field('imagem_url', url);
     } catch (error) {
       alert(error.message || 'Erro ao fazer upload da imagem');
     } finally {
       setUploading(false);
+      // limpa input para permitir re-selecionar mesmo arquivo
+      event.target.value = '';
     }
   };
 
