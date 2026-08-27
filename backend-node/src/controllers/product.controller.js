@@ -95,7 +95,15 @@ async function update(req, res) {
   const params = [id];
   let idx = 2;
 
-  // Mapeia tanto o formato camelCase quanto o snake_case que o front possa mandar
+ async function update(req, res) {
+  const { id } = req.params;
+  const data = req.body;
+
+  const sets = [];
+  const params = [id];
+  let idx = 2;
+
+  // COLE ESTE BLOCO ATUALIZADO AQUI DENTRO:
   const fieldMap = {
     sku: 'sku', 
     nome: 'nome', 
@@ -115,7 +123,7 @@ async function update(req, res) {
     imagem_url: 'imagem_url', 
     ativo: 'ativo'
   };
-  
+
   for (const [key, column] of Object.entries(fieldMap)) {
     if (data[key] !== undefined) {
       sets.push(`${column} = $${idx}`);
