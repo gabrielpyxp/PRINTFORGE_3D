@@ -41,9 +41,15 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 const number = new Intl.NumberFormat('pt-BR');
 
-function productImage(product, index = 0) {
-  return product.imagem_url || product.image_url || '';
-}
+const productImages = [
+  'https://images.unsplash.com/photo-1631553124520-3c3f1c0d7f8d?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1592833159155-c62df1b65634?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1612809077245-b9e6e2fc5141?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1623693506262-7b4c7a4d93f1?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=900&q=80'
+];
+
 const demoProducts = [
   {
     id: 'p1',
@@ -176,9 +182,7 @@ const emptyProduct = {
 
 function parseBRL(value) {
   if (value === '' || value == null) return 0;
-  // aceita "1.234,56" -> "1234.56" e "12,50" -> "12.50"
   const s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
-  // se tinha ponto como milhar, já removido; mantém só último ponto como decimal
   const parts = s.split('.');
   const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : s;
   const n = Number(normalized);
@@ -206,8 +210,9 @@ function dateValue(value) {
   return date.toISOString().slice(0, 10);
 }
 
+// Única declaração limpa de productImage (sem puxar Unsplash se for produto real vazio)
 function productImage(product, index = 0) {
-  return product.imagem_url || product.image_url || productImages[index % productImages.length];
+  return product.imagem_url || product.image_url || '';
 }
 
 function productImageFallback(e) {
@@ -258,7 +263,6 @@ function calculatePrice(input) {
     lucro_total,
     tempo_total,
     quantidade,
-    // aliases compatíveis com código antigo
     custo_total: custo_unitario,
     lucro: lucro_unitario,
     preco_final: preco_sugerido_unitario,
@@ -325,7 +329,6 @@ function App() {
     loadWorkspace();
   }, [token]);
 
-  // Hotfix: Dashboard deve revalidar sempre que ganhar foco (sem precisar F5)
   useEffect(() => {
     if (active === 'dashboard' && token) loadWorkspace();
   }, [active]);
@@ -510,7 +513,6 @@ function App() {
     notify('Cálculo salvo no histórico.');
   };
 
-  // Ativos & Suprimentos CRUD
   const createAtivo = async (form) => {
     const payload = { nome: form.nome, tipo: form.tipo, valorPago: Number(form.valorPago), dataAquisicao: form.dataAquisicao || null };
     if (demo) { setAtivos((c) => [{ ...payload, id: 'a-' + Date.now(), criadoEm: new Date().toISOString() }, ...c]); notify('Ativo criado (demo).'); return; }
@@ -550,7 +552,7 @@ function App() {
     return <LoginScreen onLogin={login} onDemo={enterDemo} />;
   }
 
-const pageProps = {
+  const pageProps = {
     products,
     sales,
     settings,
@@ -819,7 +821,6 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
     sold: sales.filter((sale) => sale.produto_id === product.id).reduce((total, sale) => total + Number(sale.quantidade), 0)
   })).sort((left, right) => right.sold - left.sold).slice(0, 4);
   
-  // Calcular variação mensal real
   const monthlyRevenue = sales.reduce((acc, sale) => {
     const month = new Date(sale.data_venda).getMonth();
     acc[month] = (acc[month] || 0) + Number(sale.preco_unitario) * Number(sale.quantidade);
@@ -1059,7 +1060,7 @@ function ProductModal({ product, onClose, onSave, busy }) {
           <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
           <label className="field"><span>Preço de venda</span><input type="number" min="0" step="0.01" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
           <label className="field"><span>Estoque inicial</span><input type="number" min="0" step="1" value={form.estoque} onChange={(event) => field('estoque', event.target.value)} required /></label>
-<div className="field field-wide">
+          <div className="field field-wide">
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#a1a1aa', display: 'flex', gap: '6px' }}>Imagem do produto <em style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-dim)' }}>opcional</em></span>
             <div
               className={'dropzone' + (dragOver ? ' dropzone-over' : '') + (imagePreview ? ' dropzone-has-image' : '')}
@@ -1086,14 +1087,12 @@ function ProductModal({ product, onClose, onSave, busy }) {
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={(e) => handleFile(e.target.files[0])} style={{ display: 'none' }} />
           </div>
-          </div>
+        </div>
         <div className="modal-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancelar</button><button className="button button-primary" disabled={busy}>{busy ? 'Salvando…' : 'Salvar produto'} <Check size={16} /></button></div>
       </form>
     </Modal>
   );
 }
-
-
 
 function getFirstDayOfMonth() {
   const d = new Date();
@@ -1120,12 +1119,10 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
   const [busy, setBusy] = useState(false);
   const selected = products.find((product) => product.id === form.produto_id);
   const filtered = sales.filter((sale) => {
-    // compat: backend retorna camelCase (dataVenda, produtoNome) mas demo usa snake_case
     const nome = sale.produto_nome || sale.produtoNome || '';
     const matchesText = nome.toLowerCase().includes(search.toLowerCase());
     const rawDate = sale.data_venda || sale.dataVenda;
     const soldAt = dateValue(rawDate);
-    // se data inválida, mostra no histórico mas ignora filtro de data
     if (!soldAt) return matchesText;
     return matchesText && (!from || soldAt >= from) && (!to || soldAt <= to);
   });
