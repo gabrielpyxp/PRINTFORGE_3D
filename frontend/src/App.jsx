@@ -1535,25 +1535,57 @@ function Toast({ tone, message }) {
   return <div className={'toast toast-' + tone}><span>{tone === 'error' ? <X size={18} /> : <Check size={18} />}</span>{message}</div>;
 }
 
-function Consignments({ consignados, products, onCreateParceiro, onCreateLote, onFecharAcerto, notify }) {
-  const [modalLoja, setModalLoja] = useState(false);
-  const [modalLote, setModalLote] = useState(null); 
-  const [modalAcerto, setModalAcerto] = useState(null); 
+<div className="table-card">
+        <div className="data-table">
+          {/* Cabeçalho ajustado para 5 colunas */}
+          <div className="table-row table-head" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1fr auto' }}>
+            <span>Loja Parceira</span>
+            <span>Acerto</span>
+            <span>Estoque na Loja</span>
+            <span>Lucro Estimado</span>
+            <span style={{ textAlign: 'right' }}>Ações</span>
+          </div>
+          
+          {!consignados?.length && <EmptyState compact icon={Store} title="Nenhuma loja parceira" text="Cadastre a primeira papelaria ou loja para enviar seus chaveiros." />}
+          
+          {consignados?.map((p) => {
+            const lotesAtivos = p.lotes?.filter(l => l.status === 'Ativo') || [];
+            const pecasNaRua = lotesAtivos.reduce((sum, l) => sum + (l.quantidade_enviada - l.quantidade_vendida), 0);
+            
+            const valorLiquido = lotesAtivos.reduce((sum, l) => {
+              const pecasRestantes = l.quantidade_enviada - l.quantidade_vendida;
+              const fatorComissao = 1 - (l.comissao_aplicada_perc / 100);
+              return sum + (pecasRestantes * l.preco_unitario * fatorComissao);
+            }, 0);
 
-  const [formLoja, setFormLoja] = useState({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' });
-  const [formLote, setFormLote] = useState({ tipo_negociacao: 'Consignacao', descricao: '', quantidade_enviada: 1, preco_unitario: '', comissao_aplicada_perc: 30 });
-  const [formAcerto, setFormAcerto] = useState({ quantidade_vendida: 0 });
-
-  const handleCreateLoja = (e) => {
-    e.preventDefault(); 
-    if (!onCreateParceiro) {
-      alert("Aviso: Função de criar parceiro não conectada.");
-      return;
-    }
-    onCreateParceiro(formLoja);
-    setModalLoja(false);
-    setFormLoja({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' });
-  };
+            return (
+              /* Linha ajustada para 5 colunas */
+              <div className="table-row" key={p.parceiro_id} style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1fr auto' }}>
+                <div><strong>{p.loja}</strong><small>{p.telefone || 'Sem telefone'} • {p.comissao_padrao}% base</small></div>
+                <span>{p.frequencia_acerto}</span>
+                <span>{pecasNaRua} un. em {lotesAtivos.length} {lotesAtivos.length === 1 ? 'expositor' : 'expositores'}</span>
+                <strong>{money(valorLiquido)}</strong>
+                
+                {/* Botões agrupados na mesma coluna e alinhados à direita */}
+                <div className="row-actions" style={{ justifyContent: 'flex-end', gap: '8px' }}>
+                  <button className="button button-secondary" style={{ padding: '6px 12px', height: 'auto', fontSize: '13px' }} onClick={() => {
+                    setFormLote(prev => ({ ...prev, comissao_aplicada_perc: p.comissao_padrao }));
+                    setModalLote(p.parceiro_id);
+                  }}>
+                    <Package size={14} /> Enviar Carga
+                  </button>
+                  
+                  {lotesAtivos.length > 0 && (
+                    <button className="button button-primary" style={{ padding: '6px 12px', height: 'auto', fontSize: '13px' }} onClick={() => setModalAcerto(lotesAtivos[0])}>
+                      <Check size={14} /> Fazer Acerto
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
   const handleCreateLote = (e) => {
     e.preventDefault();
