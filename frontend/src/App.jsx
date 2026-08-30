@@ -42,115 +42,10 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 const number = new Intl.NumberFormat('pt-BR');
 
-// Array de imagens de demonstração restaurado para evitar erros de renderização
-const productImages = [
-  'https://images.unsplash.com/photo-1631553124520-3c3f1c0d7f8d?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1592833159155-c62df1b65634?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1612809077245-b9e6e2fc5141?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1623693506262-7b4c7a4d93f1?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=900&q=80'
-];
-
-const demoProducts = [
-  {
-    id: 'p1',
-    sku: 'PF-DRG-001',
-    nome: 'Dragão articulado',
-    categoria: 'Decoração',
-    filamento_nome: 'PLA Silk',
-    filamento_tipo: 'PLA',
-    peso_g: 184,
-    tempo_impressao_h: 9.5,
-    custo_producao: 19.68,
-    preco_venda: 69.9,
-    estoque: 4,
-    imagem_url: productImages[0],
-    criado_em: '2026-08-18T13:00:00.000Z'
-  },
-  {
-    id: 'p2',
-    sku: 'PF-ORG-021',
-    nome: 'Organizador modular',
-    categoria: 'Organização',
-    filamento_nome: 'PETG Preto',
-    filamento_tipo: 'PETG',
-    peso_g: 310,
-    tempo_impressao_h: 12,
-    custo_producao: 27.9,
-    preco_venda: 94.9,
-    estoque: 12,
-    imagem_url: productImages[1],
-    criado_em: '2026-08-15T13:00:00.000Z'
-  },
-  {
-    id: 'p3',
-    sku: 'PF-COS-014',
-    nome: 'Capacete sci-fi mini',
-    categoria: 'Colecionáveis',
-    filamento_nome: 'PLA Vermelho',
-    filamento_tipo: 'PLA',
-    peso_g: 126,
-    tempo_impressao_h: 7.3,
-    custo_producao: 13.45,
-    preco_venda: 54.9,
-    estoque: 2,
-    imagem_url: productImages[2],
-    criado_em: '2026-08-12T13:00:00.000Z'
-  },
-  {
-    id: 'p4',
-    sku: 'PF-GAM-037',
-    nome: 'Suporte para headset',
-    categoria: 'Games',
-    filamento_nome: 'PLA Preto',
-    filamento_tipo: 'PLA',
-    peso_g: 91,
-    tempo_impressao_h: 5.1,
-    custo_producao: 9.7,
-    preco_venda: 39.9,
-    estoque: 7,
-    imagem_url: productImages[3],
-    criado_em: '2026-08-10T13:00:00.000Z'
-  },
-  {
-    id: 'p5',
-    sku: 'PF-DEC-055',
-    nome: 'Vaso geométrico',
-    categoria: 'Decoração',
-    filamento_nome: 'PLA Marble',
-    filamento_tipo: 'PLA',
-    peso_g: 154,
-    tempo_impressao_h: 8.2,
-    custo_producao: 16.44,
-    preco_venda: 59.9,
-    estoque: 3,
-    imagem_url: productImages[4],
-    criado_em: '2026-08-08T13:00:00.000Z'
-  },
-  {
-    id: 'p6',
-    sku: 'PF-UTL-007',
-    nome: 'Gancho multiuso',
-    categoria: 'Utilidades',
-    filamento_nome: 'PETG Azul',
-    filamento_tipo: 'PETG',
-    peso_g: 42,
-    tempo_impressao_h: 2.4,
-    custo_producao: 4.55,
-    preco_venda: 19.9,
-    estoque: 24,
-    imagem_url: productImages[5],
-    criado_em: '2026-08-02T13:00:00.000Z'
-  }
-];
-
-const demoSales = [
-  { id: 'v1', produto_id: 'p1', produto_nome: 'Dragão articulado', quantidade: 2, preco_unitario: 69.9, margem_lucro_aplicada: 255.2, data_venda: '2026-08-22T15:43:00.000Z' },
-  { id: 'v2', produto_id: 'p2', produto_nome: 'Organizador modular', quantidade: 1, preco_unitario: 94.9, margem_lucro_aplicada: 240.1, data_venda: '2026-08-22T10:12:00.000Z' },
-  { id: 'v3', produto_id: 'p4', produto_nome: 'Suporte para headset', quantidade: 3, preco_unitario: 39.9, margem_lucro_aplicada: 230.7, data_venda: '2026-08-21T18:02:00.000Z' },
-  { id: 'v4', produto_id: 'p5', produto_nome: 'Vaso geométrico', quantidade: 1, preco_unitario: 59.9, margem_lucro_aplicada: 264.3, data_venda: '2026-08-20T09:30:00.000Z' }
-];
+// Arrays de demonstração zerados para forçar o uso do banco de dados real
+const productImages = [];
+const demoProducts = [];
+const demoSales = [];
 
 const demoSettings = {
   custo_kwh: 0.98,
@@ -218,8 +113,9 @@ function productImage(product, index = 0) {
 }
 
 function productImageFallback(e) {
-  e.target.src = productImages[e.target.dataset.fallbackIndex || 0];
-  e.target.onerror = null;
+  e.target.style.display = 'none';
+  const fb = e.target.nextElementSibling;
+  if (fb) fb.style.display = 'flex';
 }
 
 function getItems(response) {
@@ -564,6 +460,7 @@ function App() {
     dashboard,
     ativos,
     suprimentos,
+    consignados,
     loading,
     onCreateProduct: createProduct,
     onUpdateProduct: updateProduct,
