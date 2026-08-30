@@ -8,6 +8,7 @@ const calculationRoutes = require('./calculation.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const ativoRoutes = require('./ativo.routes');
 const suprimentoRoutes = require('./suprimento.routes');
+const consignadosRoutes = require('./consignados.routes');
 
 const router = express.Router();
 
