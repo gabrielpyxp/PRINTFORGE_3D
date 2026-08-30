@@ -43,5 +43,6 @@ router.use('/calculos', calculationRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/ativos', ativoRoutes);
 router.use('/suprimentos', suprimentoRoutes);
+router.use('/consignados', consignadosRoutes);
 
 module.exports = router;
