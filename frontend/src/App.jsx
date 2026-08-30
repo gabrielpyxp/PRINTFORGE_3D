@@ -30,6 +30,7 @@ import {
   Trash2,
   Upload,
   UserRound,
+  Store,
   X
 } from 'lucide-react';
 import { api } from './api';
@@ -41,6 +42,7 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 const number = new Intl.NumberFormat('pt-BR');
 
+// Array de imagens de demonstração restaurado para evitar erros de renderização
 const productImages = [
   'https://images.unsplash.com/photo-1631553124520-3c3f1c0d7f8d?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1592833159155-c62df1b65634?auto=format&fit=crop&w=900&q=80',
@@ -161,6 +163,7 @@ const navigation = [
   { id: 'dashboard', label: 'Visão geral', icon: LayoutDashboard },
   { id: 'products', label: 'Produtos', icon: Package },
   { id: 'sales', label: 'Vendas', icon: ShoppingBag },
+  { id: 'consignments', label: 'Consignados', icon: Store },
   { id: 'catalog', label: 'Catálogo', icon: Grid2X2 },
   { id: 'calculator', label: 'Precificação', icon: Calculator },
   { id: 'ativos', label: 'Ativos & Insumos', icon: Boxes },
@@ -210,7 +213,6 @@ function dateValue(value) {
   return date.toISOString().slice(0, 10);
 }
 
-// Única declaração limpa de productImage (sem puxar Unsplash se for produto real vazio)
 function productImage(product, index = 0) {
   return product.imagem_url || product.image_url || '';
 }
@@ -610,6 +612,7 @@ function App() {
           {active === 'dashboard' && <Dashboard {...pageProps} onNavigate={setActive} />}
           {active === 'products' && <Products {...pageProps} />}
           {active === 'sales' && <Sales {...pageProps} />}
+          {active === 'consignments' && <Consignments {...pageProps} />}
           {active === 'catalog' && <Catalog {...pageProps} onNavigate={setActive} />}
           {active === 'calculator' && <CalculatorView {...pageProps} />}
           {active === 'ativos' && <AtivosView {...pageProps} />}
@@ -1603,6 +1606,52 @@ function EmptyState({ icon: Icon, title, text, compact = false }) {
 
 function Toast({ tone, message }) {
   return <div className={'toast toast-' + tone}><span>{tone === 'error' ? <X size={18} /> : <Check size={18} />}</span>{message}</div>;
+}
+
+function Consignments({ notify }) {
+  // Mock inicial para visualizarmos o layout
+  const parceiros = [
+    { id: 1, loja: 'Papelaria Master', acerto: 'Semanal', status: 'Ativo', pecasDeixadas: 25, valorEstimado: 375.00, dataRetorno: '2026-09-06' }
+  ];
+
+  return (
+    <section className="page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">PONTOS DE VENDA</span>
+          <h1>Consignados</h1>
+          <p>Gerencie seus expositores e acertos financeiros em lojas parceiras da região.</p>
+        </div>
+        <button className="button button-primary"><Plus size={17} /> Nova Consignação</button>
+      </div>
+
+      <div className="table-card">
+        <div className="data-table">
+          <div className="table-row table-head">
+            <span>Loja Parceira</span>
+            <span>Tipo de Acerto</span>
+            <span>Peças no Expositor</span>
+            <span>Valor Estimado</span>
+            <span>Próximo Acerto</span>
+            <span />
+          </div>
+          
+          {parceiros.map((p) => (
+            <div className="table-row" key={p.id}>
+              <div><strong>{p.loja}</strong><small>{p.status}</small></div>
+              <span>{p.acerto}</span>
+              <span>{p.pecasDeixadas} un.</span>
+              <strong>{money(p.valorEstimado)}</strong>
+              <span>{p.dataRetorno}</span>
+              <div className="row-actions">
+                <button aria-label="Fazer Acerto" onClick={() => notify('Abrir modal de acerto')}><Check size={16} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default App;
