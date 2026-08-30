@@ -62,4 +62,10 @@ export const api = {
   createSuprimento: (body, token) => request('/suprimentos', { method: 'POST', body: JSON.stringify(body) }, token),
   updateSuprimento: (id, body, token) => request('/suprimentos/' + id, { method: 'PUT', body: JSON.stringify(body) }, token),
   deleteSuprimento: (id, token) => request('/suprimentos/' + id, { method: 'DELETE' }, token),
+  
+  // --- ROTAS DE CONSIGNADOS ---
+  getConsignados: (token) => request('/consignados', {}, token),
+  createParceiro: (body, token) => request('/consignados/parceiros', { method: 'POST', body: JSON.stringify(body) }, token),
+  createLote: (body, token) => request('/consignados/lotes', { method: 'POST', body: JSON.stringify(body) }, token),
+  fecharAcerto: (id, body, token) => request(`/consignados/lotes/${id}/acerto`, { method: 'PUT', body: JSON.stringify(body) }, token),
 };

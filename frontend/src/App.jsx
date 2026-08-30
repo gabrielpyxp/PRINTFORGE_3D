@@ -825,7 +825,10 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
               const product = products.find((item) => item.id === pid);
               return <div className="sale-row" key={sale.id || index}>
                 <img src={productImage(product || {}, index)} alt="" onError={(e) => productImageFallback(e)} />
-                <div><strong>{pNome || product?.nome || 'Produto personalizado'}</strong><small>{dateTime(rawDate)} · {sale.quantidade} {Number(sale.quantidade) === 1 ? 'unidade' : 'unidades'}</small></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong>{pNome || product?.nome || 'Produto personalizado'}</strong>
+                  <small style={{ color: 'var(--text-dim)' }}>{dateTime(rawDate)} · {sale.quantidade} {Number(sale.quantidade) === 1 ? 'unidade' : 'unidades'}</small>
+                </div>
                 <b>{money(Number(preco) * Number(sale.quantidade))}</b>
               </div>;
             })}
@@ -838,7 +841,10 @@ function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
             {ranked.map((product, index) => <div className="rank-row" key={product.id}>
               <span className="rank-number">0{index + 1}</span>
               <img src={productImage(product, index)} alt="" onError={(e) => productImageFallback(e)} />
-              <div><strong>{product.nome}</strong><small>{product.sold} vendidas</small></div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <strong>{product.nome}</strong>
+                <small style={{ color: 'var(--text-dim)' }}>{product.sold} vendidas</small>
+              </div>
               <div className="rank-progress"><i style={{ width: Math.max(8, product.sold / Math.max(1, ranked[0]?.sold) * 100) + '%' }} /></div>
             </div>)}
           </div>
