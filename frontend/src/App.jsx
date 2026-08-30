@@ -475,6 +475,11 @@ function App() {
     onCreateSuprimento: createSuprimento,
     onUpdateSuprimento: updateSuprimento,
     onDeleteSuprimento: deleteSuprimento,
+    // --- ESSAS TRÊS LINHAS FALTARAM: ---
+    onCreateParceiro: createParceiro,
+    onCreateLote: createLote,
+    onFecharAcerto: fecharAcerto,
+    // -----------------------------------
     demo,
     notify
   };
