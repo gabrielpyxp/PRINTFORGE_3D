@@ -108,14 +108,17 @@ function dateValue(value) {
   return date.toISOString().slice(0, 10);
 }
 
+// Configuração do Placeholder "3D"
+const placeholder3D = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect fill="%2327272a" width="100" height="100"/%3E%3Ctext fill="%2371717a" font-family="sans-serif" font-size="24" font-weight="bold" x="50" y="58" text-anchor="middle"%3E3D%3C/text%3E%3C/svg%3E';
+
 function productImage(product, index = 0) {
-  return product.imagem_url || product.image_url || '';
+  const url = product?.imagem_url || product?.image_url;
+  return url ? url : placeholder3D;
 }
 
 function productImageFallback(e) {
-  e.target.style.display = 'none';
-  const fb = e.target.nextElementSibling;
-  if (fb) fb.style.display = 'flex';
+  e.target.onerror = null;
+  e.target.src = placeholder3D;
 }
 
 function getItems(response) {
@@ -210,7 +213,7 @@ function App() {
         api.settings(token),
         api.ativos({}, token).catch(() => ({ items: [] })),
         api.suprimentos({}, token).catch(() => ({ items: [] })),
-        api.getConsignados(token).catch(() => []) // <-- BUSCA OS CONSIGNADOS NO BANCO
+        api.getConsignados(token).catch(() => []) 
       ]);
       setDashboard(dashboardResponse);
       setProducts(getItems(productsResponse));
@@ -218,7 +221,7 @@ function App() {
       setSettings(settingsResponse || demoSettings);
       setAtivos(getItems(ativosResponse));
       setSuprimentos(getItems(suprimentosResponse));
-      setConsignados(getItems(consignadosResponse)); // <-- SALVA NO STATE
+      setConsignados(getItems(consignadosResponse)); 
     } catch (error) {
       notify('Não foi possível atualizar os dados agora. Exibindo o último estado disponível.', 'warning');
     } finally {
@@ -449,6 +452,22 @@ function App() {
     await api.deleteSuprimento(sup.id, token); setSuprimentos((c) => c.filter((s) => s.id !== sup.id)); notify('Suprimento excluído.');
   };
 
+  const createParceiro = async (form) => {
+    if (demo) { notify('Loja cadastrada (demo).'); return; }
+    try { await api.createParceiro(form, token); await loadWorkspace(); notify('Loja parceira cadastrada!'); } 
+    catch (e) { notify(e.message, 'error'); }
+  };
+  const createLote = async (form) => {
+    if (demo) { notify('Lote registrado (demo).'); return; }
+    try { await api.createLote(form, token); await loadWorkspace(); notify('Lote registrado com sucesso!'); } 
+    catch (e) { notify(e.message, 'error'); }
+  };
+  const fecharAcerto = async (id, form) => {
+    if (demo) { notify('Acerto realizado (demo).'); return; }
+    try { await api.fecharAcerto(id, form, token); await loadWorkspace(); notify('Acerto finalizado e vendas computadas!'); } 
+    catch (e) { notify(e.message, 'error'); }
+  };
+
   if (!session) {
     return <LoginScreen onLogin={login} onDemo={enterDemo} />;
   }
@@ -475,11 +494,9 @@ function App() {
     onCreateSuprimento: createSuprimento,
     onUpdateSuprimento: updateSuprimento,
     onDeleteSuprimento: deleteSuprimento,
-    // --- ESSAS TRÊS LINHAS FALTARAM: ---
     onCreateParceiro: createParceiro,
     onCreateLote: createLote,
     onFecharAcerto: fecharAcerto,
-    // -----------------------------------
     demo,
     notify
   };
@@ -893,9 +910,8 @@ function Products({ products, settings, onCreateProduct, onUpdateProduct, onDele
           <div className="table-row table-head"><span>Produto</span><span>Categoria</span><span>Preço</span><span>Estoque</span><span>Status</span><span /></div>
           {visible.map((product, index) => {
             const stock = Number(product.estoque || 0);
-            const fallbackLetter = (product.nome || 'P').trim().charAt(0).toUpperCase();
             return <div className="table-row" key={product.id}>
-              <div className="product-cell"><div className="product-thumb"><img src={productImage(product, index)} alt={product.nome} onError={(e)=>{e.target.style.display='none'; const fb=e.target.nextElementSibling; if(fb) fb.style.display='flex';}} /><div className="product-thumb-fallback" style={{display:'none'}}>{fallbackLetter}</div></div><div><strong>{product.nome}</strong><small>{product.sku || 'Sem SKU'} · {product.filamento_nome || product.filamento_tipo || 'Filamento'}</small></div></div>
+              <div className="product-cell"><div className="product-thumb"><img src={productImage(product, index)} alt={product.nome} onError={(e)=>{productImageFallback(e);}} /></div><div><strong>{product.nome}</strong><small>{product.sku || 'Sem SKU'} · {product.filamento_nome || product.filamento_tipo || 'Filamento'}</small></div></div>
               <span className="table-muted">{product.categoria || 'Sem categoria'}</span>
               <strong>{money(product.preco_venda)}</strong>
               <span>{stock} un.</span>
@@ -1075,7 +1091,7 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
               <label className="field"><span>Nome do novo produto</span><input value={form.nome_produto} onChange={(event) => setForm({ ...form, nome_produto: event.target.value })} placeholder="Peça personalizada" /></label>
               <label className="field"><span>SKU <em>opcional</em></span><input value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} placeholder="AUTO-001" /></label>
             </div>}
-            {selected && <div className="sale-product-preview"><img src={productImage(selected)} alt="" /><div><strong>{selected.nome}</strong><span>{selected.estoque} un. disponíveis · {selected.sku}</span></div><b>{money(selected.preco_venda)}</b></div>}
+            {selected && <div className="sale-product-preview"><img src={productImage(selected)} alt="" onError={(e) => productImageFallback(e)} /><div><strong>{selected.nome}</strong><span>{selected.estoque} un. disponíveis · {selected.sku}</span></div><b>{money(selected.preco_venda)}</b></div>}
             <div className="form-grid">
               <label className="field"><span>Quantidade</span><input type="number" min="1" value={form.quantidade} onChange={(event) => setForm({ ...form, quantidade: event.target.value })} required /></label>
               <label className="field"><span>Preço unitário</span><input type="number" min="0" step="0.01" value={form.preco_unitario} onChange={(event) => setForm({ ...form, preco_unitario: event.target.value })} required /></label>
