@@ -290,6 +290,7 @@ function App() {
   const [dashboard, setDashboard] = useState(null);
   const [ativos, setAtivos] = useState([]);
   const [suprimentos, setSuprimentos] = useState([]);
+  const [consignados, setConsignados] = useState([]);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -306,13 +307,14 @@ function App() {
     if (!token) return;
     setLoading(true);
     try {
-      const [dashboardResponse, productsResponse, salesResponse, settingsResponse, ativosResponse, suprimentosResponse] = await Promise.all([
+      const [dashboardResponse, productsResponse, salesResponse, settingsResponse, ativosResponse, suprimentosResponse, consignadosResponse] = await Promise.all([
         api.dashboard(token),
         api.products({}, token),
         api.sales({}, token),
         api.settings(token),
         api.ativos({}, token).catch(() => ({ items: [] })),
         api.suprimentos({}, token).catch(() => ({ items: [] })),
+        api.getConsignados(token).catch(() => []) // <-- BUSCA OS CONSIGNADOS NO BANCO
       ]);
       setDashboard(dashboardResponse);
       setProducts(getItems(productsResponse));
@@ -320,6 +322,7 @@ function App() {
       setSettings(settingsResponse || demoSettings);
       setAtivos(getItems(ativosResponse));
       setSuprimentos(getItems(suprimentosResponse));
+      setConsignados(getItems(consignadosResponse)); // <-- SALVA NO STATE
     } catch (error) {
       notify('Não foi possível atualizar os dados agora. Exibindo o último estado disponível.', 'warning');
     } finally {
