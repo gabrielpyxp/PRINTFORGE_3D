@@ -1135,10 +1135,10 @@ function Sales({ products, sales, onCreateSale, onDeleteSale, notify }) {
             {selected && <div className="sale-product-preview"><img src={productImage(selected)} alt="" onError={(e) => productImageFallback(e)} /><div><strong>{selected.nome}</strong><span>{selected.estoque} un. disponíveis · {selected.sku}</span></div><b>{money(selected.preco_venda)}</b></div>}
             <div className="form-grid">
               <label className="field"><span>Quantidade</span><input type="number" min="1" value={form.quantidade} onChange={(event) => setForm({ ...form, quantidade: event.target.value })} required /></label>
-              <label className="field"><span>Preço unitário</span><input type="number" min="0" step="0.01" value={form.preco_unitario} onChange={(event) => setForm({ ...form, preco_unitario: event.target.value })} required /></label>
+              <label className="field"><span>Preço unitário</span><input type="text" inputMode="decimal" placeholder="Ex: 99,90" value={form.preco_unitario} onChange={(event) => setForm({ ...form, preco_unitario: event.target.value })} required /></label>
               <label className="field field-wide"><span>Data da venda</span><input type="date" value={form.data_venda} onChange={(event) => setForm({ ...form, data_venda: event.target.value })} required /></label>
             </div>
-            <div className="sale-total"><span>Total da venda</span><strong>{money(Number(form.quantidade || 0) * Number(form.preco_unitario || 0))}</strong></div>
+            <div className="sale-total"><span>Total da venda</span><strong>{money(Number(form.quantidade || 0) * parseBRL(form.preco_unitario || 0))}</strong></div>
             <button className="button button-primary button-full" disabled={busy}>{busy ? 'Registrando…' : 'Confirmar venda'} <ArrowUpRight size={16} /></button>
           </form>
         </article>
@@ -1593,7 +1593,7 @@ function Consignments({ consignados, onCreateParceiro, onUpdateParceiro, onDelet
   const handleCreateLote = (e) => {
     e.preventDefault();
     if (!onCreateLote) return;
-    onCreateLote({ ...formLote, parceiro_id: modalLote, quantidade_enviada: Number(formLote.quantidade_enviada), preco_unitario: parseFloat(String(formLote.preco_unitario).replace(',', '.')) || 0, comissao_aplicada_perc: Number(String(formLote.comissao_aplicada_perc).replace(',', '.')) || 0 });
+    onCreateLote({ ...formLote, parceiro_id: modalLote, quantidade_enviada: Number(formLote.quantidade_enviada), preco_unitario: parseBRL(formLote.preco_unitario), comissao_aplicada_perc: Number(String(formLote.comissao_aplicada_perc).replace(',', '.')) || 0 });
     setModalLote(null);
     setFormLote({ tipo_negociacao: 'Consignacao', descricao: '', quantidade_enviada: 1, preco_unitario: '', comissao_aplicada_perc: 30 });
   };
@@ -1694,7 +1694,7 @@ function Consignments({ consignados, onCreateParceiro, onUpdateParceiro, onDelet
               </label>
               <label className="field field-wide"><span>Descrição do Lote / Mix</span><input placeholder="Ex: 10 Chaveiros Bike, 15 Letras" value={formLote.descricao} onChange={e => setFormLote({...formLote, descricao: e.target.value})} required /></label>
               <label className="field"><span>Qtd de Peças</span><input type="number" min="1" value={formLote.quantidade_enviada} onChange={e => setFormLote({...formLote, quantidade_enviada: e.target.value})} required /></label>
-              <label className="field"><span>Preço Unitário (Final na loja)</span><div className="input-unit money-unit"><b>R$</b><input type="number" step="0.01" value={formLote.preco_unitario} onChange={e => setFormLote({...formLote, preco_unitario: e.target.value})} required /></div></label>
+              <label className="field"><span>Preço Unitário (Final na loja)</span><div className="input-unit money-unit"><b>R$</b><input type="text" inputMode="decimal" placeholder="99,90" value={formLote.preco_unitario} onChange={e => setFormLote({...formLote, preco_unitario: e.target.value})} required /></div></label>
               {formLote.tipo_negociacao === 'Consignacao' && (
                 <label className="field field-wide"><span>Comissão desta carga (%)</span><input type="number" min="0" max="100" value={formLote.comissao_aplicada_perc} onChange={e => setFormLote({...formLote, comissao_aplicada_perc: e.target.value})} required /></label>
               )}
@@ -1702,12 +1702,12 @@ function Consignments({ consignados, onCreateParceiro, onUpdateParceiro, onDelet
             <div className="sale-total" style={{ marginTop: '16px', background: 'var(--bg-card)' }}>
               {formLote.tipo_negociacao === 'Consignacao' ? (
                 <>
-                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'var(--text-dim)'}}><span>Valor bruto na vitrine:</span><span>{money(formLote.quantidade_enviada * formLote.preco_unitario)}</span></div>
-                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'var(--text-dim)', marginBottom:'8px'}}><span>Fatia da loja ({formLote.comissao_aplicada_perc}%):</span><span>{money((formLote.quantidade_enviada * formLote.preco_unitario) * (formLote.comissao_aplicada_perc/100))}</span></div>
-                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'15px'}}><span>SEU LÍQUIDO ESTIMADO:</span><strong style={{color:'var(--accent)'}}>{money((formLote.quantidade_enviada * formLote.preco_unitario) * (1 - (formLote.comissao_aplicada_perc/100)))}</strong></div>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'var(--text-dim)'}}><span>Valor bruto na vitrine:</span><span>{money(Number(formLote.quantidade_enviada||0) * parseBRL(formLote.preco_unitario||0))}</span></div>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'var(--text-dim)', marginBottom:'8px'}}><span>Fatia da loja ({formLote.comissao_aplicada_perc}%):</span><span>{money((Number(formLote.quantidade_enviada||0) * parseBRL(formLote.preco_unitario||0)) * (formLote.comissao_aplicada_perc/100))}</span></div>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'15px'}}><span>SEU LÍQUIDO ESTIMADO:</span><strong style={{color:'var(--accent)'}}>{money((Number(formLote.quantidade_enviada||0) * parseBRL(formLote.preco_unitario||0)) * (1 - (formLote.comissao_aplicada_perc/100)))}</strong></div>
                 </>
               ) : (
-                <div style={{display:'flex', justifyContent:'space-between', fontSize:'15px'}}><span>VALOR TOTAL A RECEBER:</span><strong style={{color:'var(--accent)'}}>{money(formLote.quantidade_enviada * formLote.preco_unitario)}</strong></div>
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'15px'}}><span>VALOR TOTAL A RECEBER:</span><strong style={{color:'var(--accent)'}}>{money(Number(formLote.quantidade_enviada||0) * parseBRL(formLote.preco_unitario||0))}</strong></div>
               )}
             </div>
             <div className="modal-actions"><button type="button" className="button button-ghost" onClick={() => setModalLote(null)}>Cancelar</button><button type="submit" className="button button-primary">Registrar Carga</button></div>

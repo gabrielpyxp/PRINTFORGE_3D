@@ -36,7 +36,7 @@ const autoProductSchema = z.preprocess(
     estoqueInicial: z.coerce.number().int().min(0).optional(),
     imagemUrl: z.preprocess(
       (value) => (value === '' || value === undefined ? null : value),
-      z.string().trim().url().max(2_000).nullable()
+      z.string().trim().nullable()
     ).default(null)
   })
 );
