@@ -30,8 +30,31 @@ async function ensureMigrations() {
       );
       CREATE INDEX IF NOT EXISTS idx_ativos_tipo ON ativos(tipo);
       CREATE INDEX IF NOT EXISTS idx_suprimentos_tipo ON suprimentos(tipo);
+      CREATE TABLE IF NOT EXISTS parceiros (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        nome VARCHAR(160) NOT NULL,
+        telefone VARCHAR(40),
+        comissao_padrao NUMERIC(5,2) NOT NULL DEFAULT 30.00,
+        frequencia_acerto VARCHAR(40) NOT NULL DEFAULT 'Mensal',
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS consignacoes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        parceiro_id UUID REFERENCES parceiros(id) ON DELETE CASCADE,
+        tipo_negociacao VARCHAR(40) NOT NULL DEFAULT 'Consignacao',
+        descricao TEXT NOT NULL,
+        quantidade_enviada INTEGER NOT NULL CHECK (quantidade_enviada > 0),
+        quantidade_vendida INTEGER NOT NULL DEFAULT 0 CHECK (quantidade_vendida >= 0),
+        preco_unitario NUMERIC(12,2) NOT NULL CHECK (preco_unitario >= 0),
+        comissao_aplicada_perc NUMERIC(5,2) NOT NULL DEFAULT 30.00,
+        status VARCHAR(20) NOT NULL DEFAULT 'Ativo',
+        data_acerto DATE,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_consignacoes_parceiro ON consignacoes(parceiro_id);
+      CREATE INDEX IF NOT EXISTS idx_consignacoes_status ON consignacoes(status);
     `);
-    console.log('Migrations garantidas: ativos/suprimentos e imagem_url TEXT');
+    console.log('Migrations garantidas: ativos/suprimentos/parceiros/consignacoes e imagem_url TEXT');
   } catch (e) {
     console.error('Falha ao garantir migrations:', e.message);
   }

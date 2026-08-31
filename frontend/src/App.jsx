@@ -112,8 +112,11 @@ function dateValue(value) {
 const placeholder3D = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect fill="%2327272a" width="100" height="100"/%3E%3Ctext fill="%2371717a" font-family="sans-serif" font-size="24" font-weight="bold" x="50" y="58" text-anchor="middle"%3E3D%3C/text%3E%3C/svg%3E';
 
 function productImage(product, index = 0) {
-  const url = product?.imagem_url || product?.image_url;
-  return url ? url : placeholder3D;
+  const raw = product?.imagem_url ?? product?.imagemUrl ?? product?.image_url ?? product?.imagemUrl;
+  const url = typeof raw === 'string' ? raw.trim() : raw;
+  if (!url) return placeholder3D;
+  // Aceita data:image/...;base64,... ou https:// — somente fallback se vazio/nulo
+  return url;
 }
 
 function productImageFallback(e) {
@@ -727,9 +730,9 @@ function Topbar({ active, user, demo, loading, onMenu, onRefresh, onLogout }) {
           )}
         </div>
         <div className="dropdown-wrapper">
-          <button className="icon-button user-menu" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Menu do usuário" aria-expanded={userMenuOpen}>
-            <div className="avatar">{(user?.nome || 'A').slice(0, 1).toUpperCase()}</div>
-            <div className="user-label"><strong>{user?.nome || 'Administrador'}</strong><small>{demo ? 'Demonstração' : 'Administrador'}</small></div>
+          <button className="user-menu" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-label="Menu do usuário" aria-expanded={userMenuOpen}>
+            <span className="avatar">{(user?.nome || 'A').slice(0, 1).toUpperCase()}</span>
+            <span className="user-label"><strong>{user?.nome || 'Administrador'}</strong><small>{demo ? 'Demonstração' : 'Administrador'}</small></span>
             <ChevronDown size={16} />
           </button>
           {userMenuOpen && (
@@ -748,14 +751,22 @@ function Topbar({ active, user, demo, loading, onMenu, onRefresh, onLogout }) {
   );
 }
 
-function Dashboard({ products, sales, settings, dashboard, onNavigate }) {
-  const grossRevenue = sales.reduce((total, sale) => total + Number(sale.preco_unitario || 0) * Number(sale.quantidade || 0), 0);
-  const totalOrders = sales.reduce((total, sale) => total + Number(sale.quantidade || 0), 0);
-  const estimatedProfit = sales.reduce((total, sale) => {
-    const product = products.find((item) => item.id === sale.produto_id);
-    const unitCost = Number(product?.custo_producao || 0);
-    return total + ((Number(sale.preco_unitario || 0) - unitCost) * Number(sale.quantidade || 0));
+function Dashboard({ products, sales, settings, dashboard, consignados, onNavigate }) {
+  // Fallback local incluindo consignados fechados (Venda Direta + acertos)
+  const vendasRevenueLocal = sales.reduce((total, sale) => total + Number(sale.preco_unitario ?? sale.precoUnitario ?? 0) * Number(sale.quantidade || 0), 0);
+  const vendasQtyLocal = sales.reduce((total, sale) => total + Number(sale.quantidade || 0), 0);
+  const vendasProfitLocal = sales.reduce((total, sale) => {
+    const product = products.find((item) => item.id === (sale.produto_id ?? sale.produtoId));
+    const unitCost = Number(product?.custo_producao ?? product?.custoProducao ?? 0);
+    return total + ((Number(sale.preco_unitario ?? sale.precoUnitario ?? 0) - unitCost) * Number(sale.quantidade || 0));
   }, 0);
+  const lotesFechados = (consignados || []).flatMap(p => p.lotes || []).filter(l => l.status === 'Fechado');
+  const consignRevenueLocal = lotesFechados.reduce((sum, l) => sum + Number(l.quantidade_vendida || 0) * Number(l.preco_unitario || 0) * (1 - Number(l.comissao_aplicada_perc || 0) / 100), 0);
+  const consignQtyLocal = lotesFechados.reduce((sum, l) => sum + Number(l.quantidade_vendida || 0), 0);
+  const consignProfitLocal = consignRevenueLocal;
+  const grossRevenue = vendasRevenueLocal + consignRevenueLocal;
+  const totalOrders = vendasQtyLocal + consignQtyLocal;
+  const estimatedProfit = vendasProfitLocal + consignProfitLocal;
   const revenue = Number(dashboard?.faturamento ?? dashboard?.faturamento_total ?? grossRevenue);
   const orderCount = Number(dashboard?.total_vendas ?? dashboard?.quantidade_vendas ?? totalOrders);
   const profit = Number(dashboard?.lucro_acumulado ?? dashboard?.lucro_total ?? estimatedProfit);
@@ -1633,17 +1644,17 @@ function Consignments({ consignados, onCreateParceiro, onUpdateParceiro, onDelet
                 <span>{p.frequencia_acerto}</span>
                 <span>{pecasNaRua} un. em {lotesAtivos.length} {lotesAtivos.length === 1 ? 'expositor' : 'expositores'}</span>
                 <strong>{money(valorLiquido)}</strong>
-                <div className="row-actions" style={{ justifyContent: 'flex-end', gap: '8px' }}>
-                  <button className="button button-ghost" style={{ padding: '6px 8px', height: 'auto' }} onClick={() => startEdit(p)} title="Editar loja"><Edit3 size={14} /></button>
-                  <button className="button button-ghost" style={{ padding: '6px 8px', height: 'auto', color: 'var(--danger)' }} onClick={() => onDeleteParceiro?.(p.parceiro_id)} title="Remover loja"><Trash2 size={14} /></button>
-                  <button className="button button-ghost" style={{ padding: '6px 12px', height: 'auto' }} onClick={() => {
+                <div className="row-actions consignments-actions">
+                  <button className="button button-ghost icon-only" onClick={() => startEdit(p)} title="Editar loja"><Edit3 size={14} /></button>
+                  <button className="button button-ghost icon-only" style={{ color: 'var(--danger)' }} onClick={() => onDeleteParceiro?.(p.parceiro_id)} title="Remover loja"><Trash2 size={14} /></button>
+                  <button className="button button-ghost" onClick={() => {
                     setFormLote(prev => ({ ...prev, comissao_aplicada_perc: p.comissao_padrao }));
                     setModalLote(p.parceiro_id);
                   }}>
                     <Plus size={14} /> Enviar Carga
                   </button>
                   {lotesAtivos.length > 0 && (
-                    <button className="button button-primary" style={{ padding: '6px 12px', height: 'auto' }} onClick={() => setModalAcerto(lotesAtivos[0])}>
+                    <button className="button button-primary" onClick={() => setModalAcerto(lotesAtivos[0])}>
                       <Check size={14} /> Acerto
                     </button>
                   )}

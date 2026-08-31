@@ -135,9 +135,9 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 @keyframes spin { to { transform: rotate(360deg); } }
 .notification-button { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
 .notification-button i { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
-.user-menu { display: flex; align-items: center; gap: 8px; border-radius: 999px; padding: 4px 12px 4px 4px; background: var(--bg-card); border: 1px solid var(--border); cursor: pointer; transition: border-color var(--transition); }
-.user-menu:hover { border-color: var(--border-strong); }
-.avatar { width: 32px !important; height: 32px !important; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: linear-gradient(135deg, var(--accent) 0%, #991b1b 100%); font-weight: 700; font-size: 12px; }
+.user-menu { display: inline-flex; align-items: center; gap: 8px; width: auto; height: 40px; border-radius: 999px; padding: 4px 12px 4px 4px; background: var(--bg-card); border: 1px solid var(--border); cursor: pointer; transition: border-color var(--transition), background var(--transition); flex-shrink: 0; white-space: nowrap; }
+.user-menu:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+.avatar { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background: linear-gradient(135deg, var(--accent) 0%, #991b1b 100%); font-weight: 700; font-size: 12px; color: #fff; line-height: 1; }
 .user-label { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
 .user-label strong { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-label small { font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -343,6 +343,10 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 .row-actions button { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--text-dim); transition: all var(--transition); }
 .row-actions button:hover { background: var(--bg-hover); color: var(--text); }
 .row-actions button.danger:hover { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+/* Consignados — container flex dedicado para ações (evita sobreposição) */
+.consignments-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; flex-shrink: 0; min-width: 0; }
+.consignments-actions button { width: auto; height: auto; min-height: 32px; padding: 6px 12px; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.consignments-actions button.icon-only { width: 32px; height: 32px; min-height: 32px; padding: 0; flex-shrink: 0; }
 
 /* Status Pills */
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }

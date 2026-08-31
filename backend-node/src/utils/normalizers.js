@@ -30,6 +30,8 @@ function serializeProduct(row) {
     precoVenda: toNumber(row.preco_venda),
     estoque: Number(row.estoque),
     imagemUrl: row.imagem_url,
+    imagem_url: row.imagem_url,
+    image_url: row.imagem_url,
     ativo: row.ativo,
     criadoEm: row.criado_em,
     atualizadoEm: row.atualizado_em
