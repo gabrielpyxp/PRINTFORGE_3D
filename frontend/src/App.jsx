@@ -80,9 +80,13 @@ const emptyProduct = {
 
 function parseBRL(value) {
   if (value === '' || value == null) return 0;
-  const s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
-  const parts = s.split('.');
-  const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : s;
+  if (typeof value === 'number') return value;
+  let s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '');
+  // Se contém vírgula, é formato BR: remove pontos de milhar e troca vírgula por ponto; senão mantém ponto como decimal
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const cleaned = s.replace(/[^0-9.\-]/g, '');
+  const parts = cleaned.split('.');
+  const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : cleaned;
   const n = Number(normalized);
   return Number.isFinite(n) ? n : 0;
 }
@@ -1018,8 +1022,8 @@ function ProductModal({ product, onClose, onSave, busy }) {
           <label className="field"><span>Tipo de filamento</span><select value={form.filamento_tipo || 'PLA'} onChange={(event) => field('filamento_tipo', event.target.value)}><option>PLA</option><option>ABS</option><option>PETG</option><option>TPU</option><option>Resina</option></select></label>
           <label className="field"><span>Peso usado (g)</span><input type="number" min="0" step="0.1" value={form.peso_g} onChange={(event) => field('peso_g', event.target.value)} required /></label>
           <label className="field"><span>Tempo de impressão (h)</span><input type="number" min="0" step="0.1" value={form.tempo_impressao_h} onChange={(event) => field('tempo_impressao_h', event.target.value)} required /></label>
-          <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="number" min="0" step="0.01" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
-          <label className="field"><span>Preço de venda</span><input type="number" min="0" step="0.01" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
+          <label className="field"><span>Custo de produção <em>(calcule na Precificação)</em></span><input type="text" inputMode="decimal" placeholder="Ex: 12,50 ou 12.50" value={form.custo_producao} onChange={(event) => field('custo_producao', event.target.value)} /></label>
+          <label className="field"><span>Preço de venda</span><input type="text" inputMode="decimal" placeholder="Ex: 25,90" value={form.preco_venda} onChange={(event) => field('preco_venda', event.target.value)} required /></label>
           <label className="field"><span>Estoque inicial</span><input type="number" min="0" step="1" value={form.estoque} onChange={(event) => field('estoque', event.target.value)} required /></label>
           <div className="field field-wide">
             <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#a1a1aa', display: 'flex', gap: '6px' }}>Imagem do produto <em style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-dim)' }}>opcional</em></span>

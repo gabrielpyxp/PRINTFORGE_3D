@@ -21,16 +21,14 @@ function blankToNull(value) {
 
 const uuid = z.string().uuid('Deve ser um UUID válido.');
 
-// Converte valores financeiros PT-BR (ex: "1.234,56" ou "12,50" ou "R$ 12,50") para número
+// Converte valores financeiros PT-BR (ex: "1.234,56" ou "12,50" ou "R$ 12,50") e EN (12.50) para número
 function parseBRL(value) {
   if (value === '' || value == null) return value;
   if (typeof value === 'number') return value;
-  const s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '');
-  // mantém só dígitos, vírgula, ponto e sinal; troca vírgula decimal por ponto
-  // remove separador de milhar '.' antes de trocar vírgula
-  const withoutThousands = s.replace(/\./g, '').replace(',', '.');
-  const cleaned = withoutThousands.replace(/[^0-9.\-]/g, '');
-  // se múltiplos pontos, mantém só último como decimal
+  let s = String(value).trim().replace(/\s/g, '').replace(/R\$/gi, '');
+  // Se contém vírgula, é BR: remove pontos de milhar e troca vírgula por ponto; senão mantém ponto como decimal (input type=number)
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const cleaned = s.replace(/[^0-9.\-]/g, '');
   const parts = cleaned.split('.');
   const normalized = parts.length > 2 ? parts.slice(0, -1).join('') + '.' + parts.slice(-1)[0] : cleaned;
   const n = Number(normalized);
