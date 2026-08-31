@@ -457,9 +457,26 @@ function App() {
     try { await api.createParceiro(form, token); await loadWorkspace(); notify('Loja parceira cadastrada!'); } 
     catch (e) { notify(e.message, 'error'); }
   };
+  const updateParceiro = async (id, form) => {
+    if (demo) { notify('Loja atualizada (demo).'); return; }
+    try { await api.updateParceiro(id, form, token); await loadWorkspace(); notify('Loja atualizada!'); }
+    catch (e) { notify(e.message, 'error'); }
+  };
+  const deleteParceiro = async (id) => {
+    if (!window.confirm('Remover esta loja parceira e todos os lotes vinculados?')) return;
+    if (demo) { notify('Loja removida (demo).'); return; }
+    try { await api.deleteParceiro(id, token); await loadWorkspace(); notify('Loja removida!'); }
+    catch (e) { notify(e.message, 'error'); }
+  };
   const createLote = async (form) => {
     if (demo) { notify('Lote registrado (demo).'); return; }
     try { await api.createLote(form, token); await loadWorkspace(); notify('Lote registrado com sucesso!'); } 
+    catch (e) { notify(e.message, 'error'); }
+  };
+  const deleteLote = async (id) => {
+    if (!window.confirm('Excluir este lote?')) return;
+    if (demo) { notify('Lote removido (demo).'); return; }
+    try { await api.deleteLote(id, token); await loadWorkspace(); notify('Lote excluído!'); }
     catch (e) { notify(e.message, 'error'); }
   };
   const fecharAcerto = async (id, form) => {
@@ -495,7 +512,10 @@ function App() {
     onUpdateSuprimento: updateSuprimento,
     onDeleteSuprimento: deleteSuprimento,
     onCreateParceiro: createParceiro,
+    onUpdateParceiro: updateParceiro,
+    onDeleteParceiro: deleteParceiro,
     onCreateLote: createLote,
+    onDeleteLote: deleteLote,
     onFecharAcerto: fecharAcerto,
     demo,
     notify
@@ -1535,9 +1555,58 @@ function Toast({ tone, message }) {
   return <div className={'toast toast-' + tone}><span>{tone === 'error' ? <X size={18} /> : <Check size={18} />}</span>{message}</div>;
 }
 
-<div className="table-card">
-        <div className="data-table">
-          {/* Cabeçalho ajustado para 5 colunas */}
+function Consignments({ consignados, onCreateParceiro, onUpdateParceiro, onDeleteParceiro, onCreateLote, onFecharAcerto, onDeleteLote }) {
+  const [modalLoja, setModalLoja] = useState(false);
+  const [modalLote, setModalLote] = useState(null);
+  const [modalAcerto, setModalAcerto] = useState(null);
+  const [editingParceiro, setEditingParceiro] = useState(null);
+  const [formLoja, setFormLoja] = useState({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' });
+  const [formLote, setFormLote] = useState({ tipo_negociacao: 'Consignacao', descricao: '', quantidade_enviada: 1, preco_unitario: '', comissao_aplicada_perc: 30 });
+  const [formAcerto, setFormAcerto] = useState({ quantidade_vendida: 0 });
+
+  const handleCreateLoja = (e) => {
+    e.preventDefault();
+    if (editingParceiro) {
+      onUpdateParceiro?.(editingParceiro, { ...formLoja, comissao_padrao: Number(String(formLoja.comissao_padrao).replace(',', '.')) });
+      setEditingParceiro(null);
+    } else {
+      onCreateParceiro?.({ ...formLoja, comissao_padrao: Number(String(formLoja.comissao_padrao).replace(',', '.')) });
+    }
+    setModalLoja(false);
+    setFormLoja({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' });
+  };
+  const handleCreateLote = (e) => {
+    e.preventDefault();
+    if (!onCreateLote) return;
+    onCreateLote({ ...formLote, parceiro_id: modalLote, quantidade_enviada: Number(formLote.quantidade_enviada), preco_unitario: parseFloat(String(formLote.preco_unitario).replace(',', '.')) || 0, comissao_aplicada_perc: Number(String(formLote.comissao_aplicada_perc).replace(',', '.')) || 0 });
+    setModalLote(null);
+    setFormLote({ tipo_negociacao: 'Consignacao', descricao: '', quantidade_enviada: 1, preco_unitario: '', comissao_aplicada_perc: 30 });
+  };
+  const handleAcerto = (e) => {
+    e.preventDefault();
+    if (!onFecharAcerto) return;
+    onFecharAcerto(modalAcerto.id, { quantidade_vendida: Number(formAcerto.quantidade_vendida) });
+    setModalAcerto(null);
+  };
+  const startEdit = (p) => {
+    setFormLoja({ nome: p.loja, telefone: p.telefone || '', comissao_padrao: p.comissao_padrao, frequencia_acerto: p.frequencia_acerto });
+    setEditingParceiro(p.parceiro_id);
+    setModalLoja(true);
+  };
+
+  return (
+    <section className="page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">B2B E PONTOS DE VENDA</span>
+          <h1>Consignados & Atacado</h1>
+          <p>Gerencie seus expositores, acertos financeiros e vendas diretas para lojistas.</p>
+        </div>
+        <button className="button button-primary" onClick={() => { setEditingParceiro(null); setFormLoja({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' }); setModalLoja(true); }}><Plus size={17} /> Nova Loja Parceira</button>
+      </div>
+
+      <div className="table-card" style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        <div className="data-table" style={{ minWidth: '900px' }}>
           <div className="table-row table-head" style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1fr auto' }}>
             <span>Loja Parceira</span>
             <span>Acerto</span>
@@ -1559,101 +1628,23 @@ function Toast({ tone, message }) {
             }, 0);
 
             return (
-              /* Linha ajustada para 5 colunas */
               <div className="table-row" key={p.parceiro_id} style={{ gridTemplateColumns: '2fr 1fr 1.5fr 1fr auto' }}>
                 <div><strong>{p.loja}</strong><small>{p.telefone || 'Sem telefone'} • {p.comissao_padrao}% base</small></div>
                 <span>{p.frequencia_acerto}</span>
                 <span>{pecasNaRua} un. em {lotesAtivos.length} {lotesAtivos.length === 1 ? 'expositor' : 'expositores'}</span>
                 <strong>{money(valorLiquido)}</strong>
-                
-                {/* Botões agrupados na mesma coluna e alinhados à direita */}
                 <div className="row-actions" style={{ justifyContent: 'flex-end', gap: '8px' }}>
-                  <button className="button button-secondary" style={{ padding: '6px 12px', height: 'auto', fontSize: '13px' }} onClick={() => {
-                    setFormLote(prev => ({ ...prev, comissao_aplicada_perc: p.comissao_padrao }));
-                    setModalLote(p.parceiro_id);
-                  }}>
-                    <Package size={14} /> Enviar Carga
-                  </button>
-                  
-                  {lotesAtivos.length > 0 && (
-                    <button className="button button-primary" style={{ padding: '6px 12px', height: 'auto', fontSize: '13px' }} onClick={() => setModalAcerto(lotesAtivos[0])}>
-                      <Check size={14} /> Fazer Acerto
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-  const handleCreateLote = (e) => {
-    e.preventDefault();
-    if (!onCreateLote) return;
-    onCreateLote({ ...formLote, parceiro_id: modalLote });
-    setModalLote(null);
-    setFormLote({ tipo_negociacao: 'Consignacao', descricao: '', quantidade_enviada: 1, preco_unitario: '', comissao_aplicada_perc: 30 });
-  };
-
-  const handleAcerto = (e) => {
-    e.preventDefault();
-    if (!onFecharAcerto) return;
-    onFecharAcerto(modalAcerto.id, formAcerto);
-    setModalAcerto(null);
-  };
-
-  return (
-    <section className="page">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">B2B E PONTOS DE VENDA</span>
-          <h1>Consignados & Atacado</h1>
-          <p>Gerencie seus expositores, acertos financeiros e vendas diretas para lojistas.</p>
-        </div>
-        <button className="button button-primary" onClick={() => setModalLoja(true)}><Plus size={17} /> Nova Loja Parceira</button>
-      </div>
-
-      <div className="table-card">
-        <div className="data-table">
-          <div className="table-row table-head">
-            <span>Loja Parceira</span>
-            <span>Tipo de Acerto</span>
-            <span>Estoque na Loja</span>
-            <span>Lucro Líquido Estimado</span>
-            <span>Cargas / Lotes</span>
-            <span />
-          </div>
-          
-          {!consignados?.length && <EmptyState compact icon={Store} title="Nenhuma loja parceira" text="Cadastre a primeira papelaria ou loja para enviar seus chaveiros." />}
-          
-          {consignados?.map((p) => {
-            const lotesAtivos = p.lotes?.filter(l => l.status === 'Ativo') || [];
-            const pecasNaRua = lotesAtivos.reduce((sum, l) => sum + (l.quantidade_enviada - l.quantidade_vendida), 0);
-            
-            const valorLiquido = lotesAtivos.reduce((sum, l) => {
-              const pecasRestantes = l.quantidade_enviada - l.quantidade_vendida;
-              const fatorComissao = 1 - (l.comissao_aplicada_perc / 100);
-              return sum + (pecasRestantes * l.preco_unitario * fatorComissao);
-            }, 0);
-
-            return (
-              <div className="table-row" key={p.parceiro_id}>
-                <div><strong>{p.loja}</strong><small>{p.telefone || 'Sem telefone'} • {p.comissao_padrao}% base</small></div>
-                <span>{p.frequencia_acerto}</span>
-                <span>{pecasNaRua} un. em {lotesAtivos.length} {lotesAtivos.length === 1 ? 'expositor' : 'expositores'}</span>
-                <strong>{money(valorLiquido)}</strong>
-                <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
-                  <button className="button button-ghost" style={{ padding: '4px 10px', height: 'auto' }} onClick={() => {
+                  <button className="button button-ghost" style={{ padding: '6px 8px', height: 'auto' }} onClick={() => startEdit(p)} title="Editar loja"><Edit3 size={14} /></button>
+                  <button className="button button-ghost" style={{ padding: '6px 8px', height: 'auto', color: 'var(--danger)' }} onClick={() => onDeleteParceiro?.(p.parceiro_id)} title="Remover loja"><Trash2 size={14} /></button>
+                  <button className="button button-ghost" style={{ padding: '6px 12px', height: 'auto' }} onClick={() => {
                     setFormLote(prev => ({ ...prev, comissao_aplicada_perc: p.comissao_padrao }));
                     setModalLote(p.parceiro_id);
                   }}>
                     <Plus size={14} /> Enviar Carga
                   </button>
-                </div>
-                <div className="row-actions">
                   {lotesAtivos.length > 0 && (
-                    <button className="button button-primary" style={{ padding: '4px 10px', height: 'auto' }} onClick={() => setModalAcerto(lotesAtivos[0])}>
-                      <Check size={14} /> Fazer Acerto
+                    <button className="button button-primary" style={{ padding: '6px 12px', height: 'auto' }} onClick={() => setModalAcerto(lotesAtivos[0])}>
+                      <Check size={14} /> Acerto
                     </button>
                   )}
                 </div>
@@ -1664,14 +1655,14 @@ function Toast({ tone, message }) {
       </div>
 
       {modalLoja && (
-        <Modal title="Nova Loja Parceira" subtitle="Cadastre o ponto de venda (Ex: Papelaria Master)." onClose={() => setModalLoja(false)}>
+        <Modal title={editingParceiro ? "Editar Loja Parceira" : "Nova Loja Parceira"} subtitle={editingParceiro ? "Atualize os dados do ponto de venda." : "Cadastre o ponto de venda (Ex: Papelaria Master)."} onClose={() => { setModalLoja(false); setEditingParceiro(null); setFormLoja({ nome: '', telefone: '', comissao_padrao: 30, frequencia_acerto: 'Mensal' }); }}>
           <form className="modal-form" onSubmit={handleCreateLoja}>
             <div className="form-grid">
               <label className="field field-wide"><span>Nome da Loja</span><input value={formLoja.nome} onChange={e => setFormLoja({...formLoja, nome: e.target.value})} required /></label>
               <label className="field"><span>Comissão Padrão da Loja (%)</span><input type="number" min="0" max="100" value={formLoja.comissao_padrao} onChange={e => setFormLoja({...formLoja, comissao_padrao: e.target.value})} required /></label>
               <label className="field"><span>Acertos</span><select value={formLoja.frequencia_acerto} onChange={e => setFormLoja({...formLoja, frequencia_acerto: e.target.value})}><option>Semanal</option><option>Quinzenal</option><option>Mensal</option></select></label>
             </div>
-            <div className="modal-actions"><button type="button" className="button button-ghost" onClick={() => setModalLoja(false)}>Cancelar</button><button type="submit" className="button button-primary">Cadastrar Loja</button></div>
+            <div className="modal-actions"><button type="button" className="button button-ghost" onClick={() => { setModalLoja(false); setEditingParceiro(null); }}>Cancelar</button><button type="submit" className="button button-primary">{editingParceiro ? 'Salvar alterações' : 'Cadastrar Loja'}</button></div>
           </form>
         </Modal>
       )}

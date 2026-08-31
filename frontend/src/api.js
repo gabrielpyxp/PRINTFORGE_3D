@@ -66,6 +66,9 @@ export const api = {
   // --- ROTAS DE CONSIGNADOS ---
   getConsignados: (token) => request('/consignados', {}, token),
   createParceiro: (body, token) => request('/consignados/parceiros', { method: 'POST', body: JSON.stringify(body) }, token),
+  updateParceiro: (id, body, token) => request(`/consignados/parceiros/${id}`, { method: 'PUT', body: JSON.stringify(body) }, token),
+  deleteParceiro: (id, token) => request(`/consignados/parceiros/${id}`, { method: 'DELETE' }, token),
   createLote: (body, token) => request('/consignados/lotes', { method: 'POST', body: JSON.stringify(body) }, token),
+  deleteLote: (id, token) => request(`/consignados/lotes/${id}`, { method: 'DELETE' }, token),
   fecharAcerto: (id, body, token) => request(`/consignados/lotes/${id}/acerto`, { method: 'PUT', body: JSON.stringify(body) }, token),
 };
